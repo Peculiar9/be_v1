@@ -1,0 +1,42 @@
+node_modules
+/dist
+.env
+# WebStorm/IntelliJ IDEA
+.idea/
+*.iml
+*.iws
+*.ipr
+.idea_modules/
+out/
+build/
+
+# User-specific files
+.idea/workspace.xml
+.idea/tasks.xml
+.idea/dictionaries
+.idea/vcs.xml
+.idea/jsLibraryMappings.xml
+
+# File-based project format
+*.iws
+
+# Mac OS specific
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Logs and databases
+*.log
+*.sqlite
+
+# Cache files
+.idea/caches/
+.idea/libraries/
+
+# Add these lines to your .gitignore
+coverage/
+.nyc_output/
+*.lcov
+
+#Ignore vscode AI rules
+.github/instructions/codacy.instructions.md
