@@ -61,9 +61,8 @@ src/
 
 ### Prerequisites
 
-- Node.js (v18+)
+- Bun (v1.0+)
 - PostgreSQL (v14+)
-- pnpm (recommended) or npm/yarn
 
 ### Installation
 
@@ -75,9 +74,8 @@ src/
 
 2. **Install dependencies**
    ```bash
-   pnpm install
+   bun install
    ```
-   *(Or `npm install` / `yarn install`)*
 
 3. **Configure Environment**
    Duplicate `.env.example` to `.env` and fill in your credentials.
@@ -87,21 +85,30 @@ src/
 
 4. **Build the project**
    ```bash
-   npm run build
+   bun run build
    ```
 
-5. **Start the server**
+5. **Start the server (Development)**
    ```bash
-   npm start
+   bun run dev
+   ```
+
+6. **Start the server (Production)**
+   ```bash
+   bun start
    ```
 
 ## 🧪 Testing
 
-Run almost 0-config unit tests with Jest:
+Run unit tests with Bun's native test runner:
 
 ```bash
-npm test
+bun test
 ```
+
+## ⚠️ Important Note on Types
+
+This project enforces strict **Type-Only Imports** (`import type { IUser } from ...`) for interfaces to ensure full compatibility with Bun's runtime and isolated module transpilation. Please ensure any new interfaces are imported using the `type` modifier to avoid runtime export errors.
 
 ## 📖 Documentation
 
