@@ -28,7 +28,7 @@ class App {
             Console.info('✅ Logging initialized successfully');
 
             // Initialize database
-            // await DatabaseService.initialize(this.container);
+            await DatabaseService.initialize(this.container);
             Console.info('✅ Database initialized successfully');
 
             // Setup honoServer and middleware

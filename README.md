@@ -1,12 +1,13 @@
-# Universal Enterprise Node.js Backend Template
+# Universal Enterprise Bun Hono Backend Template
 
-A robust, production-ready Node.js backend starter kit built with TypeScript, following Clean Architecture principles (SOLID, Dependency Injection). Designed to be the solid foundation for enterprise-grade applications.
+A robust, production-ready backend starter kit built with **Bun** and **Hono**, following Clean Architecture principles (SOLID, Dependency Injection). Designed to be the solid and high-performance foundation for enterprise-grade applications.
 
 ## 🚀 Features
 
+- **High Performance**: Powered by **Bun** runtime and **Hono** web framework for blazing fast speeds.
 - **Clean Architecture**: Separation of concerns logic (Core/Application, Infrastructure, Interface Adapters).
 - **Dependency Injection**: Powered by InversifyJS for loose coupling and testability.
-- **Repository Pattern**: Abstracted data access layer using generic repositories with a Pseudo-ORM -> Not an ORM just near raw SQL query generator (or custom generic SQL implementation).
+- **Repository Pattern**: Abstracted data access layer using generic repositories.
 - **Authentication**: Complete JWT-based auth flow (Login, Register, OTP Verification, Password Reset).
 - **Security**: 
   - `bcryptjs` for password hashing.
@@ -21,19 +22,18 @@ A robust, production-ready Node.js backend starter kit built with TypeScript, fo
 
 ## 🛠 Technology Stack
 
-- **Runtime**: Node.js
+- **Runtime**: Bun
 - **Language**: TypeScript
-- **Framework**: Express.js
+- **Framework**: Hono
 - **Database**: PostgreSQL
 - **DI Container**: InversifyJS
-- **Testing**: Jest
+- **Testing**: Jest / Bun Test
 - **Linting**: ESLint
 
 ## 📦 Project Structure
 
 ```bash
 src/
-├── Controllers/        # Request handlers (Express Controllers)
 ├── Core/
 │   ├── Application/    # Application Business Rules
 │   │   ├── DTOs/       # Data Transfer Objects
@@ -48,8 +48,13 @@ src/
 │   ├── Database/       # Database Connection Logic
 │   ├── Repository/     # Data Access Implementations
 │   └── Services/       # External Services (Email, SMS, Payment)
-├── Middleware/         # Express Middleware (Auth, Error Handling)
-└── index.ts            # Entry Point
+├── Presentation/       # Interface Adapters
+│   ├── Http/
+│       ├── APIs/
+│           ├── Controllers/ # Request Handlers (Hono Controllers)
+│           └── Middleware/  # Middleware
+├── index.ts            # Entry Point
+└── App.ts              # App Initialization
 ```
 
 ## 🏁 Getting Started

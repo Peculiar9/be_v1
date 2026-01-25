@@ -95,7 +95,7 @@ export const TYPES = {
 export const APP_VERSION = 'v1';
 export const API_PATH = `api/${APP_VERSION}`;
 export const BASE_PATH = `api/${APP_VERSION}`;
-export const APP_NAME = 'clean_architecture_backend';
+export const APP_NAME = 'hono_backend';
 export const API_DOC_URL = '/';
 
 export const delimeter = {
