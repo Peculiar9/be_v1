@@ -5,7 +5,7 @@ export class LoggingConfig {
     private static instance: LoggingConfig;
     private initialized: boolean = false;
 
-    private constructor() {}
+    private constructor() { }
 
     public static getInstance(): LoggingConfig {
         if (!LoggingConfig.instance) {
@@ -13,14 +13,14 @@ export class LoggingConfig {
         }
         return LoggingConfig.instance;
     }
-   
+
     public initialize(app: Application): void {
         if (this.initialized) {
             return;
         }
 
         const environment = process.env.NODE_ENV || 'development';
-        
+
         if (environment !== 'development') {
             if (!process.env.SENTRY_DSN) {
                 console.warn('SENTRY_DSN not found in environment variables. Error tracking will be disabled.');
@@ -96,7 +96,7 @@ export class LoggingConfig {
 
     public captureException(error: Error, context?: Record<string, any>): void {
         const environment = process.env.NODE_ENV || 'development';
-        
+
         if (environment !== 'development' && this.initialized) {
             Sentry.captureException(error, {
                 extra: context
@@ -106,7 +106,7 @@ export class LoggingConfig {
 
     public captureMessage(message: string, level: 'info' | 'warning' | 'error' | 'debug' = 'info', context?: Record<string, any>): void {
         const environment = process.env.NODE_ENV || 'development';
-        
+
         if (environment !== 'development' && this.initialized) {
             Sentry.captureMessage(message, {
                 level,

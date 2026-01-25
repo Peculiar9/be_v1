@@ -1,9 +1,11 @@
 import { injectable, inject } from "inversify";
 import { TYPES } from "@Core/Types/Constants";
-import { IAuthenticationService } from "@Core/Application/Interface/Services/IAuthenticationService";
+import type { IAuthenticationService } from "@Core/Application/Interface/Services/IAuthenticationService";
 import { LoginResponseDTO } from "@Core/Application/DTOs/AuthDTO";
-import { AuthMethod, IUser, VerificationStatus } from "@Core/Application/Interface/Entities/auth-and-user/IUser";
-import { VerificationType, IVerification } from "@Core/Application/Interface/Entities/auth-and-user/IVerification";
+import { AuthMethod, VerificationStatus } from "@Core/Application/Interface/Entities/auth-and-user/IUser";
+import type { IUser } from "@Core/Application/Interface/Entities/auth-and-user/IUser";
+import { VerificationType } from "@Core/Application/Interface/Entities/auth-and-user/IVerification";
+import type { IVerification } from "@Core/Application/Interface/Entities/auth-and-user/IVerification";
 import { UserRepository } from "../Repository/SQL/users/UserRepository";
 import { TransactionManager } from "../Repository/SQL/Abstractions/TransactionManager";
 import { Console, LogLevel } from "../Utils/Console";
@@ -395,7 +397,7 @@ export class AuthenticationService extends BaseService implements IAuthenticatio
     authenticateV2(identifier: string, password: string): Promise<LoginResponseDTO | undefined> {
         throw new Error("Method not implemented.");
     }
-   
+
 
     /**
      * Generates both access and refresh tokens for a user

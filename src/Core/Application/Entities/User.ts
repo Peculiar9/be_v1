@@ -1,9 +1,10 @@
-import { AuthMethod, IBillingInfo, ICardToken, ILocation, IUser } from '../Interface/Entities/auth-and-user/IUser';
+import { AuthMethod } from '../Interface/Entities/auth-and-user/IUser';
+import type { IBillingInfo, ICardToken, ILocation, IUser } from '../Interface/Entities/auth-and-user/IUser';
 import { CreateUserDTO, UpdateUserDTO } from '../DTOs/UserDTO';
-import {  ValidationError } from '../Error/AppError';
+import { ValidationError } from '../Error/AppError';
 import { UtilityService } from '../../Services/UtilityService';
 import { UserRole } from '../Enums/UserRole';
-import { Column, CompositeIndex,  Index, IndexType } from 'peculiar-orm';
+import { Column, CompositeIndex, Index, IndexType } from 'peculiar-orm';
 import { UserStatus } from '../Enums/UserStatus';
 import { UserRegistrationDTO } from '../DTOs/AuthDTOV2';
 import CryptoService from '../../Services/CryptoService';
@@ -150,7 +151,7 @@ export class User implements IUser {
     @Column('BOOLEAN DEFAULT false')
     public verified_pid: boolean;
 
-    @Column('VARCHAR(255)') 
+    @Column('VARCHAR(255)')
     auth_method: string;
 
     @Column('VARCHAR(255)')
@@ -160,11 +161,11 @@ export class User implements IUser {
     @Column('VARCHAR(255)')
     oauth_id: string;
 
-    @Index({unique: false})
+    @Index({ unique: false })
     @Column('TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP')
     public created_at: string;
 
-    @Index({unique: false})
+    @Index({ unique: false })
     @Column('TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP')
     public updated_at: string;
 
@@ -174,20 +175,20 @@ export class User implements IUser {
     private constructor(data: Partial<IUser>) {
         Object.assign(this, data);
     }
-  
-   
+
+
 
     static async createFromDTO(dto: CreateUserDTO): Promise<User | undefined> {
-        try{
+        try {
             let email;
 
-            if(dto.email === '') {
+            if (dto.email === '') {
                 email = null;
             } else {
                 email = dto.email.toLowerCase();
             }
 
-            console.log("Email: ", {email});
+            console.log("Email: ", { email });
             const user_secret = UtilityService.generateUserSecret();
             const userData: Partial<IUser> = {
                 // _id: UtilityService.generateUUID(),
@@ -206,7 +207,7 @@ export class User implements IUser {
             const user = new User(userData);
             await user.validate();
             return user;
-        }catch(error: any){
+        } catch (error: any) {
             console.error('User Object creation: ', {
                 message: error.message,
                 stack: error.stack
@@ -215,10 +216,10 @@ export class User implements IUser {
         }
     }
     static async createFromRegisterUserDTO(dto: UserRegistrationDTO): Promise<User | undefined> {
-        try{
+        try {
             let email;
 
-            if(dto.email === '') {
+            if (dto.email === '') {
                 email = null;
             } else {
                 email = dto.email.toLowerCase();
@@ -228,7 +229,7 @@ export class User implements IUser {
             const last_name = dto.full_name.split(" ")[1];
             const salt = CryptoService.generateValidSalt();
 
-            console.log("Email: ", {email});
+            console.log("Email: ", { email });
             const user_secret = UtilityService.generateUserSecret();
             const password = CryptoService.hashString(dto.password, salt);
             const userData: Partial<IUser> = {
@@ -249,7 +250,7 @@ export class User implements IUser {
             const user = new User(userData);
             await user.validate();
             return user;
-        }catch(error: any){
+        } catch (error: any) {
             console.error('User Object creation: ', {
                 message: error.message,
                 stack: error.stack
@@ -298,7 +299,7 @@ export class User implements IUser {
         // Date format validation
         const dateFields = ['created_at', 'updated_at', 'last_login'];
         for (const field of dateFields) {
-          if (this[field as keyof User] && !this.isValidISODate(this[field as keyof User] as string)) {
+            if (this[field as keyof User] && !this.isValidISODate(this[field as keyof User] as string)) {
                 throw new ValidationError(`Invalid ${field.replace('_', ' ')} date format`);
             }
         }
@@ -321,10 +322,10 @@ export class User implements IUser {
         }
 
         // Date format validation
-        if(this.updated_at || this.last_login || this.created_at){
+        if (this.updated_at || this.last_login || this.created_at) {
             const dateFields = ['updated_at', 'last_login', 'created_at'];
             for (const field of dateFields) {
-              if (this[field as keyof User] && !this.isValidISODate(this[field as keyof User] as string)) {
+                if (this[field as keyof User] && !this.isValidISODate(this[field as keyof User] as string)) {
                     throw new ValidationError(`Invalid ${field.replace('_', ' ')} date format`);
                 }
             }

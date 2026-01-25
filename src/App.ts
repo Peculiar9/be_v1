@@ -1,85 +1,62 @@
 import 'reflect-metadata';
-import cors from 'cors';
-import bodyParser from 'body-parser';
 import { Container } from 'inversify';
-import { InversifyExpressServer } from 'inversify-express-utils';
 import { DatabaseService } from '@Infrastructure/Database/DatabaseService';
 import { getRouteInfo } from 'inversify-express-utils';
 
-import '@Presentation/Http/APIs/Controllers/InitController';
-import '@Presentation/Http/APIs/Controllers/auth/AccountController';
-import '@Presentation/Http/APIs/Controllers/auth/AuthController';
-import '@Presentation/Http/APIs/Controllers/media/MediaController';
-
-
 import { DIContainer } from '@Core/DI/DIContainer';
-
-import express, { Response, Request, NextFunction } from 'express';
-import path from 'path';
+import { Hono, HonoRequest } from 'hono';
 import { Console } from '@Infrastructure/Utils/Console';
 import { LoggingConfig } from '@Infrastructure/Config/LoggingConfig';
 
+import { applyGlobalMiddleware } from '@Presentation/Http/APIs/Middleware/Global/global';
+import { applyRoutes } from '@Presentation/Http/APIs/Middleware/Global/routes';
+
 class App {
-    public app: express.Application;
     private container: Container;
+    private app: Hono;
 
     constructor() {
         this.container = DIContainer.getInstance();
-        this.app = express();
+        this.app = new Hono();
     }
 
-    public async initialize(): Promise<express.Application> {
+    public async initialize(): Promise<Hono> {
         try {
-            
+
             // Initialize logging first
-            LoggingConfig.getInstance().initialize(this.app);
+            // LoggingConfig.getInstance().initialize(this.hono);
             Console.info('✅ Logging initialized successfully');
-            
+
             // Initialize database
-            await DatabaseService.initialize(this.container);
+            // await DatabaseService.initialize(this.container);
             Console.info('✅ Database initialized successfully');
 
-            // Setup express server with inversify
-            const server = new InversifyExpressServer(this.container);
-            
-            server.setConfig((app: express.Application) => {
-                app.use(express.json());
-                app.use(bodyParser.json());
-                app.use(bodyParser.urlencoded({ extended: false }));
-                app.set('view engine', 'ejs');
-                app.set('views', path.join(__dirname, '..', 'src', 'static'));
-                app.use(cors());
-            });
+            // Setup honoServer and middleware
+            applyGlobalMiddleware(this.app);
 
-            this.app = server.build();
+            // Register Routes
+            applyRoutes(this.app);
+
             this.initErrorHandling();
-            this.setupGracefulShutdown();
-
-            // Log route information
-            const routeInfo = getRouteInfo(this.container);
-            console.log('Registered Routes:', JSON.stringify(routeInfo, null, 2));
 
             return this.app;
         } catch (error: any) {
             const errorMessage = error.message || 'Unknown error';
-            Console.error(error, {message: errorMessage});
+            Console.error(error, { message: errorMessage });
             throw error;
         }
     }
 
     private initErrorHandling() {
         // 404 handler - must be added after all routes are defined
-        this.app.use((req: Request, res: Response, next: NextFunction) => {
-            // Import and use the NotFoundMiddleware
-            const { NotFoundMiddleware } = require('./Middleware/NotFoundMiddleware');
-            return NotFoundMiddleware.handleNotFound(req, res, next);
+        this.app.notFound((c) => {
+            return c.json({ success: false, message: "Route not found", path: c.req.path }, 404);
         });
 
-        // Global error handler - must be the last middleware
-        this.app.use((err: any, req: Request, res: Response, next: NextFunction) => {
-            // Import and use the ErrorHandlerMiddleware
-            const { ErrorHandlerMiddleware } = require('./Middleware/ErrorHandlerMiddleware');
-            return ErrorHandlerMiddleware.handleError(err, req, res, next);
+        // Global error handler
+        this.app.onError((err, c) => {
+            console.error(err);
+            return c.json({ success: false, message: err.message || "Internal Server Error" }, 500);
         });
     }
 

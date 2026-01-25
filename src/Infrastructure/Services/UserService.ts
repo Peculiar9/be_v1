@@ -3,7 +3,7 @@ import { TYPES } from '@Core/Types/Constants';
 import { BaseApiService } from '../API/BaseApiService';
 import { HttpClientFactory } from '../Http/HttpClientFactory';
 import { UserResponseDTO } from '@Core/Application/DTOs/UserDTO';
-import { IUser } from '@Core/Application/Interface/Entities/auth-and-user/IUser';
+import type { IUser } from '@Core/Application/Interface/Entities/auth-and-user/IUser';
 import { UserRepository } from '../Repository/SQL/users/UserRepository';
 import { UserRole } from '@Core/Application/Enums/UserRole';
 

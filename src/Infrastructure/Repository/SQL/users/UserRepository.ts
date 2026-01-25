@@ -1,6 +1,6 @@
 import { inject, injectable } from 'inversify';
 import { BaseRepository, TransactionManager } from 'peculiar-orm';
-import { IUser } from '@Core/Application/Interface/Entities/auth-and-user/IUser';
+import type { IUser } from '@Core/Application/Interface/Entities/auth-and-user/IUser';
 import { TableNames } from '@Core/Application/Enums/TableNames';
 import { TYPES } from '@Core/Types/Constants';
 import { DatabaseError } from '@Core/Application/Error/AppError';

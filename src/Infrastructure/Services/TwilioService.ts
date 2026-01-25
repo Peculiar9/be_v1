@@ -1,14 +1,14 @@
 import { inject, injectable } from 'inversify';
 import { TYPES } from '@Core/Types/Constants';
-import { 
-    ITwilioService, 
-    TwilioMessageOptions, 
-    TwilioMessageResponse, 
-    TwilioVerificationOptions 
+import type {
+    ITwilioService,
+    TwilioMessageOptions,
+    TwilioMessageResponse,
+    TwilioVerificationOptions
 } from '@Core/Application/Interface/Services/ITwilioService';
 import { ValidationError } from '@Core/Application/Error/AppError';
 
-import { Twilio as twilio} from 'twilio';
+import { Twilio as twilio } from 'twilio';
 // @ts-ignore - Using require for Twilio to avoid potential import issues
 
 /**
@@ -29,7 +29,7 @@ export class TwilioService implements ITwilioService {
         // Initialize Twilio client
         this.client = new twilio(this.accountSid, this.authToken);
         this.verifyClient = this.client.verify.v2.services(this.verifyServiceSid);
-        
+
         console.info('TwilioService initialized');
     }
 
@@ -42,7 +42,7 @@ export class TwilioService implements ITwilioService {
     async sendSMS(to: string, body: string, options?: TwilioMessageOptions): Promise<TwilioMessageResponse> {
         try {
             console.info(`Sending SMS to ${to}`);
-            
+
             const messageOptions = {
                 to,
                 body,
@@ -50,11 +50,11 @@ export class TwilioService implements ITwilioService {
                 statusCallback: options?.statusCallback,
                 messagingServiceSid: options?.messagingServiceSid
             };
-            
+
             const message = await this.client.messages.create(messageOptions);
-            
+
             console.info(`SMS sent successfully to ${to}, SID: ${message.sid}`);
-            
+
             return {
                 sid: message.sid,
                 status: message.status,
@@ -67,7 +67,7 @@ export class TwilioService implements ITwilioService {
             };
         } catch (error: any) {
             console.error(`Failed to send SMS to ${to}:`, error);
-            
+
             return {
                 sid: '',
                 status: 'failed',
@@ -92,22 +92,22 @@ export class TwilioService implements ITwilioService {
     async sendWhatsApp(to: string, body: string, options?: TwilioMessageOptions): Promise<TwilioMessageResponse> {
         try {
             console.info(`Sending WhatsApp message to ${to}`);
-            
+
             // Format WhatsApp number with whatsapp: prefix
             const from = `whatsapp:${options?.from || this.defaultWhatsAppNumber}`;
             const formattedTo = `whatsapp:${to}`;
-            
+
             const messageOptions = {
                 to: formattedTo,
                 body,
                 from,
                 statusCallback: options?.statusCallback
             };
-            
+
             const message = await this.client.messages.create(messageOptions);
-            
+
             console.info(`WhatsApp message sent successfully to ${to}, SID: ${message.sid}`);
-            
+
             return {
                 sid: message.sid,
                 status: message.status,
@@ -120,7 +120,7 @@ export class TwilioService implements ITwilioService {
             };
         } catch (error: any) {
             console.error(`Failed to send WhatsApp message to ${to}:`, error);
-            
+
             return {
                 sid: '',
                 status: 'failed',
@@ -150,19 +150,19 @@ export class TwilioService implements ITwilioService {
     }> {
         try {
             console.info(`Starting verification for ${to} via ${options.channel}`);
-            
+
             if (!this.verifyServiceSid) {
                 throw new ValidationError('Twilio Verify Service SID is not configured');
             }
-            
+
             const verification = await this.verifyClient.verifications.create({
                 to,
                 channel: options.channel,
                 locale: options.locale
             });
-            
+
             console.info(`Verification started for ${to}, SID: ${verification.sid}`);
-            
+
             return {
                 sid: verification.sid,
                 status: verification.status,
@@ -188,18 +188,18 @@ export class TwilioService implements ITwilioService {
     }> {
         try {
             console.info(`Checking verification code for ${to}`);
-            
+
             if (!this.verifyServiceSid) {
                 throw new ValidationError('Twilio Verify Service SID is not configured');
             }
-            
+
             const verification = await this.verifyClient.verificationChecks.create({
                 to,
                 code
             });
-            
+
             console.info(`Verification check for ${to}: ${verification.status}`);
-            
+
             return {
                 sid: verification.sid,
                 status: verification.status,

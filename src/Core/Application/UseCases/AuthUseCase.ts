@@ -4,13 +4,13 @@ import { ChangePasswordDTO, ForgotPasswordDTO, IEmailVerificationResponse, Login
 import { LoginDTO } from "../DTOs/AuthDTO";
 import { TYPES } from "../../Types/Constants";
 import { inject } from "inversify";
-import { IRegistrationService } from "../Interface/Services/IRegistrationService";
+import type { IRegistrationService } from "../Interface/Services/IRegistrationService";
 import { UserResponseDTO } from "../DTOs/UserDTO";
-import { IUser } from "../Interface/Entities/auth-and-user/IUser";
-import { IUserProfileService } from "../Interface/Services/IUserProfileService";
-import { IAuthenticationService } from "../Interface/Services/IAuthenticationService";
+import type { IUser } from "../Interface/Entities/auth-and-user/IUser";
+import type { IUserProfileService } from "../Interface/Services/IUserProfileService";
+import type { IAuthenticationService } from "../Interface/Services/IAuthenticationService";
 import { AuthHelpers } from "@Infrastructure/Services/helpers/AuthHelpers";
-import { ITwilioEmailService } from "../Interface/Services/ITwilioEmailService";
+import type { ITwilioEmailService } from "../Interface/Services/ITwilioEmailService";
 import { ValidationError, ServiceError } from "../Error/AppError";
 import { UserStatus } from "../Enums/UserStatus";
 import { Console } from "console";

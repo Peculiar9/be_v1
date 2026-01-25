@@ -5,7 +5,7 @@ import { TYPES } from "@Core/Types/Constants";
 import { UserRepository } from "@Infrastructure/Repository/SQL/users/UserRepository";
 import { RegistrationError, ValidationError } from "@Core/Application/Error/AppError";
 import { DocumentValidationError, DocumentExpiryError, DocumentDataMismatchError, ImageProcessingError } from "@Core/Application/Error/KYCError";
-import { IAWSHelper } from "@Core/Application/Interface/Services/IAWSHelper";
+import type { IAWSHelper } from "@Core/Application/Interface/Services/IAWSHelper";
 import { BucketName } from "@Core/Application/Enums/BucketName";
 // import { v4 as uuidv4 } from 'uuid';
 import { IUser } from "@Core/Application/Interface/Entities/auth-and-user/IUser";
@@ -19,9 +19,9 @@ import { UtilityService } from "@Core/Services/UtilityService";
 export class KYCService extends BaseService implements IKYCService {
   private readonly kycDirectory: string = 'kyc-documents';
   private readonly urlExpirationSeconds: number = 300; // 5 minutes
-  
 
-  
+
+
   constructor(
     @inject(TYPES.UserRepository) private readonly userRepository: UserRepository,
     @inject(TYPES.AWSHelper) private readonly awsHelper: IAWSHelper,
@@ -34,34 +34,34 @@ export class KYCService extends BaseService implements IKYCService {
   async checkOrInitializeKYC(userId: string): Promise<IUserKYC> {
     let transactionSuccessfullyStarted = false;
     try {
-          transactionSuccessfullyStarted = await this.beginTransaction();
-          const userKYC = await this.userKYCRepository.findByUserId(userId);
-          if (!userKYC) {
-             const user = await this.userRepository.findById(userId);
-             if (!user) {
-              throw new ValidationError('User not found');
-             }
-             const newUserKYC: Partial<IUserKYC> = {
-              user_id: userId,
-              status: KYCStatus.PENDING,
-              current_stage: KYCStage.FACE_UPLOAD,
-              stage_metadata: {},
-             }
-             const createdUserKYC = await this.userKYCRepository.create(newUserKYC);
-             await this.commitTransaction();
-             return createdUserKYC;
-          }
-          if(userKYC.status === KYCStatus.COMPLETED) {
-            throw new RegistrationError("User already completed KYC, proceed to app");
-          }
-          await this.commitTransaction();
-          return userKYC;
+      transactionSuccessfullyStarted = await this.beginTransaction();
+      const userKYC = await this.userKYCRepository.findByUserId(userId);
+      if (!userKYC) {
+        const user = await this.userRepository.findById(userId);
+        if (!user) {
+          throw new ValidationError('User not found');
+        }
+        const newUserKYC: Partial<IUserKYC> = {
+          user_id: userId,
+          status: KYCStatus.PENDING,
+          current_stage: KYCStage.FACE_UPLOAD,
+          stage_metadata: {},
+        }
+        const createdUserKYC = await this.userKYCRepository.create(newUserKYC);
+        await this.commitTransaction();
+        return createdUserKYC;
+      }
+      if (userKYC.status === KYCStatus.COMPLETED) {
+        throw new RegistrationError("User already completed KYC, proceed to app");
+      }
+      await this.commitTransaction();
+      return userKYC;
     } catch (error) {
-      if(transactionSuccessfullyStarted) {
+      if (transactionSuccessfullyStarted) {
         await this.rollbackTransaction();
       }
       throw error;
-    } 
+    }
   }
 
   validateCarImage(userId: string, s3Key: string, expectedVehicleType?: VehicleType): Promise<IVehicleImageData> {
@@ -110,7 +110,7 @@ export class KYCService extends BaseService implements IKYCService {
     }
   }
 
-  
+
 
   // =================================================================
   // PRIVATE HELPER METHODS
@@ -161,13 +161,13 @@ export class KYCService extends BaseService implements IKYCService {
     // This is a simplified example. A real implementation would need more advanced logic
     // to find text that is physically close to the keyword on the document.
     for (const [id, text] of textMap.entries()) {
-        for (const keyword of keywords) {
-            if (text.toUpperCase().includes(keyword)) {
-                // A very naive assumption that the value is the next detected block of text
-                const nextId = (parseInt(id) + 1).toString();
-                return textMap.get(nextId) || '';
-            }
+      for (const keyword of keywords) {
+        if (text.toUpperCase().includes(keyword)) {
+          // A very naive assumption that the value is the next detected block of text
+          const nextId = (parseInt(id) + 1).toString();
+          return textMap.get(nextId) || '';
         }
+      }
     }
     return '';
   }

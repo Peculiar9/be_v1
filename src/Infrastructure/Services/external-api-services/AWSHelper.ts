@@ -5,7 +5,7 @@ import { SMSData } from "../data/SMSData";
 import { BucketName } from "@Core/Application/Enums/BucketName";
 import { AWSBaseServices } from "./AWSBaseServices";
 import { PublishCommand } from "@aws-sdk/client-sns";
-import { IAWSHelper } from "@Core/Application/Interface/Services/IAWSHelper";
+import type { IAWSHelper } from "@Core/Application/Interface/Services/IAWSHelper";
 import { ComparedFace, CompareFacesCommandOutput } from "@aws-sdk/client-rekognition";
 import { FileFormat } from "@Core/Application/Enums/FileFormat";
 
@@ -14,7 +14,7 @@ export class AWSHelper extends AWSBaseServices implements IAWSHelper {
     constructor() {
         super();
     }
- 
+
     async sendVerificationEmail(to: string, data: EmailData): Promise<boolean> {
         const template = await this.getEmailTemplate(EmailType.VERIFICATION, data);
         return await this.sendEmail(
@@ -151,19 +151,19 @@ export class AWSHelper extends AWSBaseServices implements IAWSHelper {
             fileBody: file.buffer,
             contentType: file.mimetype || 'image/jpeg',
         };
-        
+
         console.log("AWSHelper::profileImageUpload() before uploadFile calling of the profileImageUpload: => ", uploadData);
         const result = await this.uploadFile(uploadData);
-        
+
         // Construct and return the full URL
         const region = process.env.AWS_REGION || 'us-east-1';
         return `https://${BucketName.MEDIA_ARCHIVE}.s3.${region}.amazonaws.com/${uploadData.directoryPath}${fileKeyWithExt}`;
     }
 
     async batchImageUpload(
-        files: any[], 
-        fileKey: string[], 
-        bucketName: BucketName, 
+        files: any[],
+        fileKey: string[],
+        bucketName: BucketName,
         directoryPath: string = ''
     ): Promise<string[]> {
         const urls: string[] = [];
@@ -185,12 +185,12 @@ export class AWSHelper extends AWSBaseServices implements IAWSHelper {
     }
 
     async batchImageDelete(
-        fileKeys: string[], 
-        bucketName: BucketName, 
+        fileKeys: string[],
+        bucketName: BucketName,
         directoryPath: string = ''
     ): Promise<string[]> {
         const deletedKeys: string[] = [];
-        
+
         await Promise.all(fileKeys.map(async (fileKey: string) => {
             const fullPath = `${directoryPath}/${fileKey}`.replace(/^\/+/, '');
             try {

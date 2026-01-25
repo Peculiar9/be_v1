@@ -1,6 +1,6 @@
 import { inject, injectable } from "inversify";
 import { TYPES } from "@Core/Types/Constants";
-import { IRegistrationService } from "@Core/Application/Interface/Services/IRegistrationService";
+import type { IRegistrationService } from "@Core/Application/Interface/Services/IRegistrationService";
 import { UserResponseDTO } from "@Core/Application/DTOs/UserDTO";
 import { VerifyEmailDTO, LoginResponseDTO } from "@Core/Application/DTOs/AuthDTO";
 import { UserRepository } from "../Repository/SQL/users/UserRepository";
@@ -12,16 +12,17 @@ import { ResponseMessage } from '@Core/Application/Response/ResponseFormat';
 import { EnvironmentConfig } from '../Config/EnvironmentConfig';
 import { CryptoService } from "@Core/Services/CryptoService";
 import { UtilityService } from "@Core/Services/UtilityService";
-import { IUser, VerificationStatus } from "@Core/Application/Interface/Entities/auth-and-user/IUser";
+import { VerificationStatus } from "@Core/Application/Interface/Entities/auth-and-user/IUser";
+import type { IUser } from "@Core/Application/Interface/Entities/auth-and-user/IUser";
 import { VerificationType } from "@Core/Application/Interface/Entities/auth-and-user/IVerification";
 import { User } from "@Core/Application/Entities/User";
 import { UserStatus } from "@Core/Application/Enums/UserStatus";
 import { SMSService } from "./SMSService";
 import { BaseService } from "./base/BaseService";
 import { AuthHelpers } from "./helpers/AuthHelpers";
-import { ITokenService } from "@Core/Application/Interface/Services/ITokenService";
+import type { ITokenService } from "@Core/Application/Interface/Services/ITokenService";
 import { UserRegistrationDTO } from "@Core/Application/DTOs/AuthDTOV2";
-import { ITwilioEmailService } from "@/Core/Application/Interface/Services/ITwilioEmailService";
+import type { ITwilioEmailService } from "@/Core/Application/Interface/Services/ITwilioEmailService";
 
 @injectable()
 export class RegistrationService extends BaseService implements IRegistrationService {

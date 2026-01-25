@@ -4,10 +4,10 @@ import { TYPES } from '@Core/Types/Constants';
 import { AuthenticationError, ForbiddenError } from '@Core/Application/Error/AppError';
 import { ResponseMessage } from '@Core/Application/Response/ResponseFormat';
 import { DIContainer } from '@Core/DI/DIContainer';
-import { IUser } from '@Core/Application/Interface/Entities/auth-and-user/IUser';
+import type { IUser } from '@Core/Application/Interface/Entities/auth-and-user/IUser';
 import { UserRole } from '@Core/Application/Enums/UserRole';
 import { AuthenticationService } from '@Infrastructure/Services/AuthenticationService';
-import { IAuthenticationService } from '@Core/Application/Interface/Services/IAuthenticationService';
+import type { IAuthenticationService } from '@Core/Application/Interface/Services/IAuthenticationService';
 
 @injectable()
 export class AuthMiddleware {

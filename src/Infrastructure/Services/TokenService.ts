@@ -1,6 +1,6 @@
 import { injectable } from "inversify";
-import { ITokenService } from "@Core/Application/Interface/Services/ITokenService";
-import { IUser } from "@Core/Application/Interface/Entities/auth-and-user/IUser";
+import type { ITokenService } from "@Core/Application/Interface/Services/ITokenService";
+import type { IUser } from "@Core/Application/Interface/Entities/auth-and-user/IUser";
 import * as jwt from "jsonwebtoken";
 import { UtilityService } from "@Core/Services/UtilityService";
 import { AuthenticationError } from "@Core/Application/Error/AppError";
@@ -128,11 +128,11 @@ export class TokenService implements ITokenService {
     //             message: `Token verification error: ${error.message}`,
     //             level: LogLevel.ERROR
     //         });
-            
+
     //         if (error.name === 'TokenExpiredError') {
     //             throw new AuthenticationError(ResponseMessage.INVALID_TOKEN_MESSAGE);
     //         }
-            
+
     //         throw new AuthenticationError(error.message);
     //     }
     // }
@@ -145,13 +145,13 @@ export class TokenService implements ITokenService {
     public async verifyToken(token: string): Promise<any> {
         try {
             const secret = process.env.JWT_ACCESS_SECRET;
-            
+
             const tokenParts = token.split('.');
             if (tokenParts.length === 3) {
                 try {
                     const header = JSON.parse(Buffer.from(tokenParts[0], 'base64url').toString());
-                    
-                    
+
+
                     // Try to decode without verification to see payload
                     const decodedPayload = jwt.decode(token);
                 } catch (e) {
@@ -160,7 +160,7 @@ export class TokenService implements ITokenService {
             } else {
                 console.log("Token does not have the expected format (header.payload.signature). Parts:", tokenParts.length);
             }
-            
+
             if (!secret) {
                 Console.error(new Error("JWT_ACCESS_SECRET not defined"), {
                     message: "JWT access secret is not defined in environment variables",
@@ -170,7 +170,7 @@ export class TokenService implements ITokenService {
             }
 
             const decoded = jwt.verify(token, secret);
-            
+
             if (!decoded) {
                 throw new AuthenticationError(ResponseMessage.INVALID_TOKEN_MESSAGE);
             }
@@ -181,11 +181,11 @@ export class TokenService implements ITokenService {
                 message: `Token verification error: ${error.message}`,
                 level: LogLevel.ERROR
             });
-            
+
             if (error.name === 'TokenExpiredError') {
                 throw new AuthenticationError(ResponseMessage.INVALID_TOKEN_MESSAGE);
             }
-            
+
             throw new AuthenticationError(error.message);
         }
     }

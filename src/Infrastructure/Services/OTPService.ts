@@ -1,7 +1,7 @@
 import { inject, injectable } from "inversify";
-import { IOTPService } from "@Core/Application/Interface/Services/IOTPService";
+import type { IOTPService } from "@Core/Application/Interface/Services/IOTPService";
 import { TYPES } from "@Core/Types/Constants";
-import { IVerification } from "@Core/Application/Interface/Entities/auth-and-user/IVerification";
+import type { IVerification } from "@Core/Application/Interface/Entities/auth-and-user/IVerification";
 import CryptoService from "@Core/Services/CryptoService";
 import { UtilityService } from "@Core/Services/UtilityService";
 import { VerificationRepository } from "../Repository/SQL/auth/VerificationRepository";

@@ -1,4 +1,5 @@
-import { Pool, PoolClient, PoolConfig } from 'pg'; // Using PoolConfig from 'pg' for better type safety
+import { Pool } from 'pg';
+import type { PoolClient, PoolConfig } from 'pg';
 import { EventEmitter } from 'events';
 import { DatabaseError } from '@Core/Application/Error/AppError'; // Assuming path
 import { DatabaseConnectionError } from '@Core/Application/Error/DatabaseErrors'; // Assuming path
@@ -177,14 +178,14 @@ export class ConnectionPoolManager extends EventEmitter {
     const internalConnectionId = `conn_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
     const acquisitionStartTime = Date.now();
 
-       Console.write('Attempting to acquire database connection...', LogLevel.DEBUG, {
-        context: 'ConnectionPoolManager.getConnection',
-        poolId: this.poolId,
-        internalConnectionId,
-        options,
-        currentLeased: this.metrics.activeLeasedConnections,
-        poolMax: this.poolOptions.max,
-        poolWaiting: this.pool.waitingCount,
+    Console.write('Attempting to acquire database connection...', LogLevel.DEBUG, {
+      context: 'ConnectionPoolManager.getConnection',
+      poolId: this.poolId,
+      internalConnectionId,
+      options,
+      currentLeased: this.metrics.activeLeasedConnections,
+      poolMax: this.poolOptions.max,
+      poolWaiting: this.pool.waitingCount,
     });
 
     try {
@@ -245,55 +246,55 @@ export class ConnectionPoolManager extends EventEmitter {
       // Query timeout handling (client-side attempt)
       let currentQueryTimeoutTimer: NodeJS.Timeout | undefined;
       (client as any).query = (...args: any[]) => {
-          if (currentQueryTimeoutTimer) clearTimeout(currentQueryTimeoutTimer);
+        if (currentQueryTimeoutTimer) clearTimeout(currentQueryTimeoutTimer);
 
-          const queryText = typeof args[0] === 'string' ? args[0] : (args[0] as { text: string }).text;
-          const currentClientProcessID = (client as any).processID as number | undefined;
-          const queryContext = {
-              context: 'ConnectionPoolManager.client.query.timeoutHandler',
-              poolId: this.poolId,
-              internalConnectionId,
-              processID: currentClientProcessID,
-              query: queryText.substring(0, 200) + (queryText.length > 200 ? '...' : ''),
-              queryTimeoutMs: this.QUERY_TIMEOUT_MS,
-          };
+        const queryText = typeof args[0] === 'string' ? args[0] : (args[0] as { text: string }).text;
+        const currentClientProcessID = (client as any).processID as number | undefined;
+        const queryContext = {
+          context: 'ConnectionPoolManager.client.query.timeoutHandler',
+          poolId: this.poolId,
+          internalConnectionId,
+          processID: currentClientProcessID,
+          query: queryText.substring(0, 200) + (queryText.length > 200 ? '...' : ''),
+          queryTimeoutMs: this.QUERY_TIMEOUT_MS,
+        };
 
-          currentQueryTimeoutTimer = setTimeout(async () => {
-              Console.write('Query timeout detected. Attempting pg_cancel_backend...', LogLevel.WARNING, queryContext);
-              this.emit('error', new DatabaseConnectionError('Query timeout detected', { ...queryContext, type: 'QueryTimeout' }));
+        currentQueryTimeoutTimer = setTimeout(async () => {
+          Console.write('Query timeout detected. Attempting pg_cancel_backend...', LogLevel.WARNING, queryContext);
+          this.emit('error', new DatabaseConnectionError('Query timeout detected', { ...queryContext, type: 'QueryTimeout' }));
 
-              if (currentClientProcessID) {
-                  let cancelClient: PoolClient | null = null;
-                  try {
-                      Console.write(`Attempting to acquire separate client to cancel PID: ${currentClientProcessID}`, LogLevel.INFO, queryContext);
-                      cancelClient = await this.pool.connect();
-                      await cancelClient.query('SELECT pg_cancel_backend($1)', [currentClientProcessID]);
-                      Console.write(`pg_cancel_backend for PID ${currentClientProcessID} sent.`, LogLevel.INFO, queryContext);
-                  } catch (cancelError: any) {
-                      Console.write(`Failed to execute pg_cancel_backend for PID ${currentClientProcessID}.`, LogLevel.ERROR, { ...queryContext, cancelError: cancelError.message });
-                  } finally {
-                      if (cancelClient) cancelClient.release();
-                  }
-              } else {
-                  Console.write('Cannot attempt pg_cancel_backend: client.processID is not available.', LogLevel.WARNING, queryContext);
-              }
-              this.performClientRelease(client, new Error(`Query timed out after ${this.QUERY_TIMEOUT_MS}ms. Cancellation attempted.`));
-          }, this.QUERY_TIMEOUT_MS);
-          connectionDetails.queryTimeoutTimer = currentQueryTimeoutTimer;
-          
-          const originalQueryFunction = (client as any)._originalQuery || originalQuery;
-          const result = originalQueryFunction.apply(client, args as any);
-          if (result && typeof result.then === 'function') {
-            result.then(() => {
-                if (currentQueryTimeoutTimer) clearTimeout(currentQueryTimeoutTimer);
-            }).catch(() => {
-                if (currentQueryTimeoutTimer) clearTimeout(currentQueryTimeoutTimer);
-            });
+          if (currentClientProcessID) {
+            let cancelClient: PoolClient | null = null;
+            try {
+              Console.write(`Attempting to acquire separate client to cancel PID: ${currentClientProcessID}`, LogLevel.INFO, queryContext);
+              cancelClient = await this.pool.connect();
+              await cancelClient.query('SELECT pg_cancel_backend($1)', [currentClientProcessID]);
+              Console.write(`pg_cancel_backend for PID ${currentClientProcessID} sent.`, LogLevel.INFO, queryContext);
+            } catch (cancelError: any) {
+              Console.write(`Failed to execute pg_cancel_backend for PID ${currentClientProcessID}.`, LogLevel.ERROR, { ...queryContext, cancelError: cancelError.message });
+            } finally {
+              if (cancelClient) cancelClient.release();
+            }
           } else {
-             client.once('end', () => { if (currentQueryTimeoutTimer) clearTimeout(currentQueryTimeoutTimer); });
-             client.once('error', () => { if (currentQueryTimeoutTimer) clearTimeout(currentQueryTimeoutTimer); });
+            Console.write('Cannot attempt pg_cancel_backend: client.processID is not available.', LogLevel.WARNING, queryContext);
           }
-          return result;
+          this.performClientRelease(client, new Error(`Query timed out after ${this.QUERY_TIMEOUT_MS}ms. Cancellation attempted.`));
+        }, this.QUERY_TIMEOUT_MS);
+        connectionDetails.queryTimeoutTimer = currentQueryTimeoutTimer;
+
+        const originalQueryFunction = (client as any)._originalQuery || originalQuery;
+        const result = originalQueryFunction.apply(client, args as any);
+        if (result && typeof result.then === 'function') {
+          result.then(() => {
+            if (currentQueryTimeoutTimer) clearTimeout(currentQueryTimeoutTimer);
+          }).catch(() => {
+            if (currentQueryTimeoutTimer) clearTimeout(currentQueryTimeoutTimer);
+          });
+        } else {
+          client.once('end', () => { if (currentQueryTimeoutTimer) clearTimeout(currentQueryTimeoutTimer); });
+          client.once('error', () => { if (currentQueryTimeoutTimer) clearTimeout(currentQueryTimeoutTimer); });
+        }
+        return result;
       };
 
 
@@ -323,8 +324,8 @@ export class ConnectionPoolManager extends EventEmitter {
       });
       this.emit('error', error);
       throw new DatabaseConnectionError(
-          `Failed to acquire connection (Pool: ${this.poolId}, Configured Timeout: ${this.CONNECTION_ACQUIRE_TIMEOUT_MS}ms): ${error.message}`,
-          { cause: error, poolId: this.poolId }
+        `Failed to acquire connection (Pool: ${this.poolId}, Configured Timeout: ${this.CONNECTION_ACQUIRE_TIMEOUT_MS}ms): ${error.message}`,
+        { cause: error, poolId: this.poolId }
       );
     }
   }
@@ -335,8 +336,8 @@ export class ConnectionPoolManager extends EventEmitter {
     // Restore original query and release methods to prevent issues if this client somehow gets reused without re-patching
     // This is defensive. pg-pool should give new client objects or re-initialize them.
     if (typeof (client as any)._originalQuery === 'function') {
-        (client as any).query = (client as any)._originalQuery;
-        delete (client as any)._originalQuery;
+      (client as any).query = (client as any)._originalQuery;
+      delete (client as any)._originalQuery;
     }
     // The original release is called at the end of this method.
 
@@ -365,8 +366,8 @@ export class ConnectionPoolManager extends EventEmitter {
 
     const connectionDetails = this.connectionTimestamps.get(internalConnectionId)!;
     if (connectionDetails.queryTimeoutTimer) {
-        clearTimeout(connectionDetails.queryTimeoutTimer);
-        connectionDetails.queryTimeoutTimer = undefined;
+      clearTimeout(connectionDetails.queryTimeoutTimer);
+      connectionDetails.queryTimeoutTimer = undefined;
     }
 
     const durationMs = Date.now() - connectionDetails.acquiredAt.getTime();
@@ -389,7 +390,7 @@ export class ConnectionPoolManager extends EventEmitter {
       errorIndication: errorIndication?.message,
       forceDiscardOption,
     });
-    
+
     // Call the original release function
     if (typeof (client as any)._originalRelease === 'function') {
       const shouldDiscard = !!errorIndication || forceDiscardOption === true;
@@ -407,15 +408,15 @@ export class ConnectionPoolManager extends EventEmitter {
   }
 
   public async releaseConnection(client: PoolClient, options?: { error?: Error, forceDiscard?: boolean }): Promise<void> {
-      const currentProcessID = (client as any).processID as number | undefined;
-      Console.write('Explicit public releaseConnection called.', LogLevel.DEBUG, {
-        context: 'ConnectionPoolManager.public.releaseConnection',
-        poolId: this.poolId,
-        processID: currentProcessID,
-        hasError: !!options?.error,
-        forceDiscard: !!options?.forceDiscard,
-      });
-      this.performClientRelease(client, options?.error, options?.forceDiscard);
+    const currentProcessID = (client as any).processID as number | undefined;
+    Console.write('Explicit public releaseConnection called.', LogLevel.DEBUG, {
+      context: 'ConnectionPoolManager.public.releaseConnection',
+      poolId: this.poolId,
+      processID: currentProcessID,
+      hasError: !!options?.error,
+      forceDiscard: !!options?.forceDiscard,
+    });
+    this.performClientRelease(client, options?.error, options?.forceDiscard);
   }
 
   private updatePoolStatsMetrics(): void {
@@ -482,13 +483,13 @@ export class ConnectionPoolManager extends EventEmitter {
     });
     this.emit('disposed');
   }
-  
+
   public getMetricsSummary(): any {
     const durations = this.metrics.connectionDurations;
-    const avgDuration = durations.length > 0 
-      ? durations.reduce((sum, val) => sum + val, 0) / durations.length 
+    const avgDuration = durations.length > 0
+      ? durations.reduce((sum, val) => sum + val, 0) / durations.length
       : 0;
-      
+
     return {
       poolId: this.poolId,
       totalConnectionsCreated: this.metrics.totalConnectionsCreated,
@@ -506,7 +507,7 @@ export class ConnectionPoolManager extends EventEmitter {
       lastMetricsResetTime: this.metrics.lastMetricsResetTime?.toISOString(),
     };
   }
-  
+
   public resetMetrics(): void {
     const oldMaxConcurrent = this.metrics.maxConcurrentLeasedConnections;
     this.metrics = this.initializeMetrics();
@@ -520,7 +521,7 @@ export class ConnectionPoolManager extends EventEmitter {
 
   private emitConnectionStatus(): void { this.emit('connectionStatus', this.metrics.activeLeasedConnections); }
 
-  public getConnectionAges(): Array<{connectionId: string, ageSeconds: number, acquiredAt: string, processID?: number, options?: ConnectionOptions}> {
+  public getConnectionAges(): Array<{ connectionId: string, ageSeconds: number, acquiredAt: string, processID?: number, options?: ConnectionOptions }> {
     const now = Date.now();
     return Array.from(this.connectionTimestamps.entries()).map(([connId, info]) => ({
       connectionId: connId,
