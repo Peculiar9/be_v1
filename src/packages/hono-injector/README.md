@@ -10,6 +10,9 @@ Decorator-based routing and dependency injection for [Hono](https://hono.dev/), 
 - 💉 **Dependency Injection**: Full support for InversifyJS.
 - 🎨 **Decorators**: `@controller`, `@httpGet`, `@middleware`, and more.
 - 🚀 **Lightweight**: Built on top of Hono's blazing fast router.
+- ⚡️ **Zero Runtime Reflection**: Route handlers are compiled at startup for maximum performance.
+
+[**Architecture & Comparison with NestJS/Express**](./docs/COMPARISON.md) | [**Changelog**](./CHANGELOG.md)
 
 ## Installation
 
@@ -86,6 +89,8 @@ const auth = createMiddleware(async (c, next) => {
 @controller('/orders', [logger])
 export class OrderController {
   
+  constructor(@inject(OrderService) private orderService: OrderService) {}
+
   // Apply specific middleware to this route
   @httpPost('/')
   @middleware(auth) 
@@ -93,6 +98,44 @@ export class OrderController {
     return c.json({ message: 'Order created' });
   }
 }
+```
+
+## Complex Scenarios
+
+### Dependency Injection with Request Scope
+
+All requests automatically get a **Child Container**. This means you can bind services in `inRequestScope()` to share state (like a user context or transaction) across services for a single request.
+
+```typescript
+// 1. Bind a Service in Request Scope
+container.bind(UserContext).toSelf().inRequestScope();
+
+// 2. Inject it anywhere
+@injectable()
+class OrderService {
+  constructor(@inject(UserContext) private userCtx: UserContext) {}
+
+  create() {
+    // This userCtx is unique to the current request!
+    console.log(this.userCtx.currentUser); 
+  }
+}
+```
+
+### Custom Parameter Decorators
+
+You can easily create your own decorators using the Hono Context.
+
+```typescript
+import { createParamDecorator } from 'hono-injector';
+
+// Create a decorator that extracts the user from c.get('user')
+export const CurrentUser = () => {
+    return (target, propertyKey, index) => {
+        // Custom implementation...
+        // See source code for 'createParamDecorator' usage
+    };
+};
 ```
 
 ## API
