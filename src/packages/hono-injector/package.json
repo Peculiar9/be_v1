@@ -1,0 +1,64 @@
+{
+    "name": "hono-injector",
+    "version": "1.0.0",
+    "description": "Decorator-based routing for Hono with Inversify DI - like inversify-express-utils but for Hono",
+    "author": "Jesse",
+    "license": "MIT",
+    "keywords": [
+        "hono",
+        "inversify",
+        "dependency-injection",
+        "decorators",
+        "typescript",
+        "routing",
+        "controller",
+        "di",
+        "ioc",
+        "bun",
+        "node"
+    ],
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/yourusername/hono-injector"
+    },
+    "main": "./dist/index.js",
+    "module": "./dist/index.mjs",
+    "types": "./dist/index.d.ts",
+    "exports": {
+        ".": {
+            "import": "./dist/index.mjs",
+            "require": "./dist/index.js",
+            "types": "./dist/index.d.ts"
+        }
+    },
+    "files": [
+        "dist",
+        "README.md",
+        "LICENSE"
+    ],
+    "scripts": {
+        "build": "tsup",
+        "dev": "tsup --watch",
+        "test": "vitest",
+        "test:coverage": "vitest --coverage",
+        "lint": "eslint src/",
+        "prepublishOnly": "npm run build"
+    },
+    "peerDependencies": {
+        "hono": ">=4.0.0",
+        "inversify": ">=6.0.0",
+        "reflect-metadata": ">=0.2.0"
+    },
+    "devDependencies": {
+        "@types/node": "^20.0.0",
+        "hono": "^4.0.0",
+        "inversify": "^6.0.0",
+        "reflect-metadata": "^0.2.0",
+        "tsup": "^8.0.0",
+        "typescript": "^5.0.0",
+        "vitest": "^1.0.0"
+    },
+    "engines": {
+        "node": ">=18.0.0"
+    }
+}
