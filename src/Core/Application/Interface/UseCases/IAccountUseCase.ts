@@ -1,4 +1,4 @@
-import { IUser } from '../Entities/auth-and-user/IUser';
+import type { IUser } from '../Entities/auth-and-user/IUser';
 import { UserResponseDTO, UpdateUserDTO, CreateUserDTO, UserProfileResponseDTO } from '../../DTOs/UserDTO';
 import { VerifyEmailDTO, IEmailVerificationResponse, LoginResponseDTO } from '../../DTOs/AuthDTO';
 

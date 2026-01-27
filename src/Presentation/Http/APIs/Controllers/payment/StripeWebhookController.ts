@@ -1,11 +1,10 @@
-import { controller, httpPost, request, response } from 'inversify-express-utils';
-import { Request, Response } from 'express';
+import type { Context } from 'hono';
 import { inject } from 'inversify';
+import { controller, httpPost, ctx } from 'hono-injector';
 import { TYPES } from '@Core/Types/Constants';
-import { API_PATH } from '@Core/Types/Constants';
 import { BaseController } from '../BaseController';
 import { CallbackMiddleware } from '../../Middleware/CallbackMiddleware';
-import { IStripeWebhookService } from '@Core/Application/Interface/Services/IStripeWebhookService';
+import type { IStripeWebhookService } from '@Core/Application/Interface/Services/IStripeWebhookService';
 import { Console } from '@Infrastructure/Utils/Console';
 import Stripe from 'stripe';
 
@@ -13,7 +12,7 @@ import Stripe from 'stripe';
  * Controller for handling Stripe webhook events
  * This controller receives webhook events from Stripe and processes them asynchronously
  */
-@controller(`/${API_PATH}/webhooks/stripe`)
+@controller(`/webhooks/stripe`)
 export class StripeWebhookController extends BaseController {
     constructor(
         @inject(TYPES.StripeWebhookService) private stripeWebhookService: IStripeWebhookService
@@ -26,16 +25,17 @@ export class StripeWebhookController extends BaseController {
      * Uses CallbackMiddleware.acknowledge to quickly respond to Stripe while processing continues
      * Uses CallbackMiddleware.validateSignature to verify the webhook signature
      */
-    @httpPost('/', 
+    @httpPost('/', [
         CallbackMiddleware.validateSignature(process.env.STRIPE_WEBHOOK_SECRET || ''),
         CallbackMiddleware.acknowledge(1000)
-    )
-    async handleWebhook(@request() req: Request, @response() res: Response) {
+    ])
+    async handleWebhook(@ctx() c: Context) {
         try {
-            const event = req.body as Stripe.Event;
-            
+            // Hono caches the body allowing middleware to read text and us to read JSON
+            const event = await c.req.json() as Stripe.Event;
+
             // Log the incoming webhook event
-            Console.info('Received Stripe webhook event', { 
+            Console.info('Received Stripe webhook event', {
                 type: event.type,
                 id: event.id,
                 created: new Date(event.created * 1000).toISOString()
@@ -43,22 +43,16 @@ export class StripeWebhookController extends BaseController {
 
             // Process the event asynchronously
             await this.stripeWebhookService.processWebhookEvent(event);
-            
-            // If we get here and the response hasn't been sent yet (by the acknowledge middleware),
-            // send a success response
-            if (!res.headersSent) {
-                return this.success(res, { received: true }, 'Webhook received successfully');
-            }
+
+            // Return success response independently of middleware (middleware will use it if needed)
+            return this.success(c, { received: true }, 'Webhook received successfully');
         } catch (error: any) {
-            Console.error(error, { 
+            Console.error(error, {
                 message: `StripeWebhookController::handleWebhook - ${error.message}`,
-                webhook: req.body?.id || 'unknown'
+                webhook: (await c.req.json())?.id || 'unknown'
             });
-            
-            // Only send error response if the acknowledge middleware hasn't sent a response yet
-            if (!res.headersSent) {
-                return this.error(res, error.message, error.statusCode || 500);
-            }
+
+            return this.error(c, error.message, error.statusCode || 500);
         }
     }
 }

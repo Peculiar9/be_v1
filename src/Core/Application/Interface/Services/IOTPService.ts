@@ -1,4 +1,4 @@
-import { IVerification } from "../Entities/auth-and-user/IVerification";
+import type { IVerification } from "../Entities/auth-and-user/IVerification";
 
 export interface IOTPService {  
     createOtpInstance(otp: string, salt: string): Promise<IVerification>;

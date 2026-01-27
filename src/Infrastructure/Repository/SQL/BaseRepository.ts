@@ -1,4 +1,4 @@
-import { IRepository } from "@Core/Application/Interface/Persistence/Repository/IRepository";
+import type { IRepository } from "@Core/Application/Interface/Persistence/Repository/IRepository";
 import { TransactionManager } from "peculiar-orm";
 import { QueryResult } from 'pg';
 import { DatabaseError, InternalServerError } from "@Core/Application/Error/AppError";

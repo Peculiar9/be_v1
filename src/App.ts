@@ -10,6 +10,17 @@ import { LoggingConfig } from '@Infrastructure/Config/LoggingConfig';
 
 import { applyGlobalMiddleware } from '@Presentation/Http/APIs/Middleware/Global/global';
 import { applyRoutes } from '@Presentation/Http/APIs/Middleware/Global/routes';
+import { registerControllers, RegisterOptions } from "hono-injector";
+import { HealthController } from '@Presentation/Http/APIs/Controllers/HealthController';
+import { InitController } from '@Presentation/Http/APIs/Controllers/InitController';
+import { AuthController } from '@Presentation/Http/APIs/Controllers/auth/AuthController';
+import { AccountController } from '@Presentation/Http/APIs/Controllers/auth/AccountController';
+import { FileController } from '@Presentation/Http/APIs/Controllers/FileController';
+import { FileUploadController } from '@Presentation/Http/APIs/Controllers/FileUploadController';
+import { MediaController } from '@Presentation/Http/APIs/Controllers/media/MediaController';
+import { PaymentController } from '@Presentation/Http/APIs/Controllers/payment/PaymentController';
+import { StripeWebhookController } from '@Presentation/Http/APIs/Controllers/payment/StripeWebhookController';
+import { API_PATH } from '@Core/Types/Constants';
 
 class App {
     private container: Container;
@@ -22,20 +33,32 @@ class App {
 
     public async initialize(): Promise<Hono> {
         try {
-
             // Initialize logging first
             // LoggingConfig.getInstance().initialize(this.hono);
             Console.info('✅ Logging initialized successfully');
 
             // Initialize database
-            await DatabaseService.initialize(this.container);
+            // await DatabaseService.initialize(this.container);
             Console.info('✅ Database initialized successfully');
 
             // Setup honoServer and middleware
             applyGlobalMiddleware(this.app);
 
+            const options: RegisterOptions = { prefix: `${API_PATH}`, debug: true };
+
             // Register Routes
-            applyRoutes(this.app);
+            registerControllers(this.app, this.container, [
+                HealthController,
+                InitController,
+                AuthController,
+                AccountController,
+                FileController,
+                FileUploadController,
+                MediaController,
+                PaymentController,
+                StripeWebhookController
+            ], options);
+
 
             this.initErrorHandling();
 

@@ -1,24 +1,22 @@
-import { Response, Request } from 'express';
+import { Context } from 'hono';
 import { injectable } from 'inversify';
 import { BaseMiddleware } from '../Middleware/BaseMiddleware';
 import { AppError } from '@Core/Application/Error/AppError';
 
 @injectable()
 export class BaseController extends BaseMiddleware {
-  protected success(res: Response, data: any, message: string = 'Success') {
-    return res.status(200).json({
+  protected success(c: Context, data: any, message: string = 'Success') {
+    return c.json({
       success: true,
       message,
       data
-    });
+    }, 200);
   }
 
-  
-
-  protected error(res: Response, message: string, status: number, error?: Error) {
+  protected error(c: Context, message: string, status: number = 500, error?: Error) {
     console.log("BaseController::error - ", error);
     console.log("BaseController::instance of error - ", error instanceof AppError);
-    status = status || 500;
+
     let response: any = {
       success: false,
       message: message || error?.message,
@@ -26,14 +24,17 @@ export class BaseController extends BaseMiddleware {
       data: null
     };
 
-    if(error instanceof AppError){
+    if (error instanceof AppError) {
       response = {
         success: false,
         message: error.message,
-        error_code: error.errorCode, // <-- THE KEY PART
+        error_code: error.errorCode,
         data: null,
-    };
+      };
     }
-    return res.status(status).json(response);
+
+    // Hono status code must be a valid StatusCode type, so we might need casting or careful typing
+    // specific status codes like 400, 401 etc are fine.
+    return c.json(response, status as any); // cast to any to avoid strict StatusCode type errors for dynamic status
   }
 }

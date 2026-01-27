@@ -1,5 +1,5 @@
 import { Column, CompositeIndex, ForeignKey, Index } from "peculiar-orm";
-import { ILinkedAccounts } from '../Interface/Entities/auth-and-user/ILinkedAcounts';
+import type { ILinkedAccounts } from '../Interface/Entities/auth-and-user/ILinkedAcounts';
 import { AuthMethod, OAuthProvider } from '../Interface/Entities/auth-and-user/IUser';
 import { ValidationError } from '../Error/AppError';
 import { TableNames } from '../Enums/TableNames';
