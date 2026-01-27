@@ -10,6 +10,9 @@ import { LoggingConfig } from '@Infrastructure/Config/LoggingConfig';
 
 import { applyGlobalMiddleware } from '@Presentation/Http/APIs/Middleware/Global/global';
 import { applyRoutes } from '@Presentation/Http/APIs/Middleware/Global/routes';
+import { registerControllers, RegisterOptions } from "hono-injector";
+import { HealthController } from '@Presentation/Http/APIs/Controllers/HealthController';
+import { API_PATH } from '@Core/Types/Constants';
 
 class App {
     private container: Container;
@@ -34,8 +37,11 @@ class App {
             // Setup honoServer and middleware
             applyGlobalMiddleware(this.app);
 
+            const options: RegisterOptions = { prefix: `${API_PATH}`};
+
             // Register Routes
-            applyRoutes(this.app);
+            // applyRoutes(this.app);
+            registerControllers(this.app, this.container, [HealthController], );
 
             this.initErrorHandling();
 
