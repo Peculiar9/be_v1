@@ -1,4 +1,4 @@
-import { Request, Response, NextFunction } from 'express';
+import type { Context, Next } from 'hono';
 import { injectable, inject } from 'inversify';
 import { TYPES } from '@Core/Types/Constants';
 import { AuthenticationError, ForbiddenError } from '@Core/Application/Error/AppError';
@@ -11,37 +11,28 @@ import type { IAuthenticationService } from '@Core/Application/Interface/Service
 
 @injectable()
 export class AuthMiddleware {
-  // private static getTransactionManager(): TransactionManager {
-  //   return DIContainer.getInstance().get<TransactionManager>(TYPES.TransactionManager);
-  // }
   constructor(
     @inject(TYPES.AuthenticationService) private authenticationService: IAuthenticationService,
-  ) {
-    // this.transactionManager = AuthMiddleware.getTransactionManager();
-    // console.log('it got here auth middleware constructor', this.transactionManager);
-  }
+  ) { }
 
   public static authenticate() {
     const middleware = AuthMiddleware.createInstance();
-    return async (req: Request, res: Response, next: NextFunction) => {
-      await middleware.authenticateInstance(req, res, next);
+    return async (c: Context, next: Next) => {
+      await middleware.authenticateInstance(c, next);
     };
   }
-
 
   public static authenticateAdmin() {
     const middleware = AuthMiddleware.createInstance();
-    return async (req: Request, res: Response, next: NextFunction) => {
-      await middleware.authenticateOperatorInstance(req, res, next);
+    return async (c: Context, next: Next) => {
+      await middleware.authenticateOperatorInstance(c, next);
     };
   }
 
-
-
   public static authenticateOptional() {
     const middleware = AuthMiddleware.createInstance();
-    return async (req: Request, res: Response, next: NextFunction) => {
-      await middleware.authenticateOptionalInstance(req, res, next);
+    return async (c: Context, next: Next) => {
+      await middleware.authenticateOptionalInstance(c, next);
     };
   }
 
@@ -51,52 +42,50 @@ export class AuthMiddleware {
     return new AuthMiddleware(authenticationService);
   }
 
-  private authenticateInstance = async (req: Request, res: Response, next: NextFunction) => {
+  private authenticateInstance = async (c: Context, next: Next) => {
     try {
-      const token = this.extractToken(req);
+      const token = this.extractToken(c);
       const user = await this.validateTokenAndUser(token);
-      res.locals.user = user;
-      next();
+      c.set('user', user);
+      await next();
     } catch (error: any) {
-      this.handleAuthError(res, error);
+      return this.handleAuthError(c, error);
     }
   };
 
-  private authenticateOperatorInstance = async (req: Request, res: Response, next: NextFunction) => {
+  private authenticateOperatorInstance = async (c: Context, next: Next) => {
     try {
-      const token = this.extractToken(req);
+      const token = this.extractToken(c);
       if (token === 'undefined' || token === null || token === '' || !token) {
         throw new AuthenticationError(ResponseMessage.INVALID_TOKEN_MESSAGE);
       }
       const user = await this.validateTokenAndUser(token, UserRole.OPERATOR);
       console.log('user', user);
-      res.locals.user = user;
-      next();
+      c.set('user', user);
+      await next();
     } catch (error: any) {
-      this.handleAuthError(res, error);
+      return this.handleAuthError(c, error);
     }
   };
 
-
-
-  private authenticateOptionalInstance = async (req: Request, res: Response, next: NextFunction) => {
+  private authenticateOptionalInstance = async (c: Context, next: Next) => {
     try {
-      const token = this.extractTokenOptional(req);
+      const token = this.extractTokenOptional(c);
       if (token) {
         const user = await this.validateTokenAndUser(token);
-        res.locals.user = user;
+        c.set('user', user);
       }
-      next();
+      await next();
     } catch (error: any) {
       // Optionally log the error, but proceed as unauthenticated.
       console.log('Optional authentication failed:', error.message);
-      next();
+      await next();
     }
   };
 
-  private extractToken(req: Request): string {
-    const authHeader = req.headers.authorization;
-    console.log("Request Header: ", req.headers);
+  private extractToken(c: Context): string {
+    const authHeader = c.req.header('Authorization');
+    // console.log("Request Header: ", c.req.header()); // Debug if needed
     if (!authHeader) {
       throw new AuthenticationError(ResponseMessage.INVALID_AUTH_HEADER_MESSAGE);
     }
@@ -109,8 +98,8 @@ export class AuthMiddleware {
     return token;
   }
 
-  private extractTokenOptional(req: Request): string | null {
-    const authHeader = req.headers.authorization;
+  private extractTokenOptional(c: Context): string | null {
+    const authHeader = c.req.header('Authorization');
     if (!authHeader) {
       return null;
     }
@@ -122,27 +111,28 @@ export class AuthMiddleware {
   }
 
   private async validateTokenAndUser(token: string, requiredRole?: UserRole) {
-    console.log("it got here validate token and user");
+    // console.log("it got here validate token and user");
     const decodedToken = await this.authenticationService.verifyToken(token);
     const user: IUser = await this.authenticationService.validateUser(decodedToken.sub as string);
-    console.log('decodedToken from auth middleware', decodedToken)
-    console.log('user from auth middleware', user);
+    // console.log('decodedToken from auth middleware', decodedToken)
+    // console.log('user from auth middleware', user);
     if (requiredRole && !user?.roles?.includes(requiredRole)) {
       throw new ForbiddenError(ResponseMessage.INSUFFICIENT_PRIVILEDGES_MESSAGE);
     }
     return user;
   }
 
-  private handleAuthError(res: Response, error: any): Response {
+  private handleAuthError(c: Context, error: any) {
     const statusCode = error instanceof AuthenticationError ? 401 :
       error instanceof ForbiddenError ? 403 : 500;
 
-    return res.status(statusCode).json({
+    return c.json({
       success: false,
       message: error.message || ResponseMessage.INTERNAL_SERVER_ERROR_MESSAGE,
       error_code: error.errorCode || 0,
-    });
+    }, statusCode);
   }
 }
 
 export default AuthMiddleware;
+

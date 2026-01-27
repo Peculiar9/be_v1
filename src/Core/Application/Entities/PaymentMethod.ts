@@ -1,4 +1,5 @@
-import { IPaymentMethod, PaymentMethodStatus, PaymentMethodType } from '../Interface/Entities/payment/IPaymentMethod';
+import { PaymentMethodStatus, PaymentMethodType } from '../Interface/Entities/payment/IPaymentMethod';
+import type { IPaymentMethod } from '../Interface/Entities/payment/IPaymentMethod';
 import { Column, CompositeIndex, ForeignKey, Index } from 'peculiar-orm';
 import { ValidationError } from '../Error/AppError';
 import { TableNames } from '../Enums/TableNames';

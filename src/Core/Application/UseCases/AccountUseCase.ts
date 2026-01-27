@@ -5,7 +5,7 @@ import { VerifyEmailDTO, IEmailVerificationResponse } from '../DTOs/AuthDTO';
 import { UserResponseDTO, UpdateUserDTO, CreateUserDTO, UserProfileResponseDTO } from '../DTOs/UserDTO';
 import { ResponseMessage } from '../Response/ResponseFormat';
 import { LoginResponseDTO } from '../DTOs/AuthDTO';
-import { IUser } from '../Interface/Entities/auth-and-user/IUser';
+import type { IUser } from '../Interface/Entities/auth-and-user/IUser';
 import { AppError, ValidationError, UnprocessableEntityError, ServiceError } from '../Error/AppError';
 import { Console } from '@Infrastructure/Utils/Console';
 import type { IRegistrationService } from '../Interface/Services/IRegistrationService';

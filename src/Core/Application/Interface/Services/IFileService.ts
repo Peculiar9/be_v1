@@ -1,5 +1,5 @@
 import { Readable } from 'stream';
-import { IUser } from '../Entities/auth-and-user/IUser';
+import type { IUser } from '../Entities/auth-and-user/IUser';
 import { FileManager } from '../../Entities/FileManager';
 
 export interface IFileService {

@@ -1,7 +1,7 @@
 import { injectable, inject } from 'inversify';
 import { TYPES } from '@Core/Types/Constants';
 import { BaseRepository, TransactionManager } from 'peculiar-orm';
-import { IFileManager } from '@Core/Application/Interface/Entities/file-manager/IFileManager';
+import type { IFileManager } from '@Core/Application/Interface/Entities/file-manager/IFileManager';
 import { TableNames } from '@Core/Application/Enums/TableNames';
 import { FileManager } from '@Core/Application/Entities/FileManager';
 import { Console, LogLevel } from '../../../Utils/Console';

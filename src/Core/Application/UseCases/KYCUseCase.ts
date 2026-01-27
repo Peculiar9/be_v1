@@ -1,7 +1,8 @@
 import { inject } from "inversify";
 import { TYPES } from "@Core/Types/Constants";
-import { IKYCUseCase } from "../Interface/UseCases/IKYCUseCase";
-import { IUserKYC, KYCStage, KYCStatus } from "../Interface/Entities/auth-and-user/IVerification";
+import type { IKYCUseCase } from "../Interface/UseCases/IKYCUseCase";
+import { KYCStage, KYCStatus } from "../Interface/Entities/auth-and-user/IVerification";
+import type { IUserKYC } from "../Interface/Entities/auth-and-user/IVerification";
 import { UserKYCRepository } from "@Infrastructure/Repository/SQL/auth/UserKYCRepository";
 import { UserRepository } from "@Infrastructure/Repository/SQL/users/UserRepository";
 import { RegistrationError } from "../Error/AppError";

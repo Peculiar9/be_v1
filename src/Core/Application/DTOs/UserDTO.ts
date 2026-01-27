@@ -1,7 +1,7 @@
 import { IsNotEmpty, IsString, IsEmail, IsOptional, IsEnum, IsArray, ValidateNested, Length, IsBoolean } from 'class-validator';
 import { Type } from 'class-transformer';
 import { UserRole } from '../Enums/UserRole';
-import { ILocation } from '../Interface/Entities/auth-and-user/IUser';
+import type { ILocation } from '../Interface/Entities/auth-and-user/IUser';
 
 export class BaseUserDTO {
   @IsNotEmpty()

@@ -1,6 +1,6 @@
 import { CreateUserDTO, UserResponseDTO, UpdateUserDTO } from '../../DTOs/UserDTO';
 import { LoginResponseDTO, EmailSignUpDTO, VerifyEmailDTO, IEmailVerificationResponse } from '../../DTOs/AuthDTO';
-import { IUser } from '../Entities/auth-and-user/IUser';
+import type { IUser } from '../Entities/auth-and-user/IUser';
 
 
 export interface IAuthService {

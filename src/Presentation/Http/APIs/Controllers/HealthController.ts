@@ -1,7 +1,10 @@
-import { Context } from "hono";
+import type { Context } from "hono";
+import { controller, httpGet, ctx } from "hono-injector";
 
+@controller("/health")
 export class HealthController {
-    public async check(c: Context) {
+    @httpGet("/")
+    public async check(@ctx() c: Context) {
         return c.json({
             status: "ok",
             timestamp: new Date().toISOString(),

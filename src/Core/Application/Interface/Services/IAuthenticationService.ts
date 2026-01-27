@@ -1,5 +1,5 @@
 import { LoginResponseDTO } from '../../DTOs/AuthDTO';
-import { IUser } from '../Entities/auth-and-user/IUser';
+import type { IUser } from '../Entities/auth-and-user/IUser';
 import { RefreshTokenResultDTO } from '../../DTOs/AuthenticationDTO';
 
 /**

@@ -1,4 +1,4 @@
-import { IUser } from '../Entities/auth-and-user/IUser';
+import type { IUser } from '../Entities/auth-and-user/IUser';
 
 /**
  * Interface for token-related operations

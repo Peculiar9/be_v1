@@ -1,4 +1,4 @@
-import { IUserKYC } from "../Interface/Entities/auth-and-user/IVerification";
+import type { IUserKYC } from "../Interface/Entities/auth-and-user/IVerification";
 
 import { Column, Index, ForeignKey } from "peculiar-orm";
 import { KYCStage, KYCStatus } from "../Interface/Entities/auth-and-user/IVerification";

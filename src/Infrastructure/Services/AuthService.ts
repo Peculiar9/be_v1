@@ -1,7 +1,7 @@
 import { inject, injectable } from 'inversify';
 import bcrypt from "bcryptjs";
 import { APP_NAME, TYPES } from '@Core/Types/Constants';
-import { IAuthService } from '@Core/Application/Interface/Services/IAuthService';
+import type { IAuthService } from '@Core/Application/Interface/Services/IAuthService';
 import { TransactionManager } from 'peculiar-orm';
 import { ResponseMessage } from '@Core/Application/Response/ResponseFormat';
 import { AuthenticationError, ConflictError, UnprocessableEntityError, ValidationError } from '@Core/Application/Error/AppError';
@@ -9,13 +9,15 @@ import { EmailSignUpDTO, IEmailVerificationResponse, IPhoneVerificationResponse,
 import { UtilityService } from '@Core/Services/UtilityService';
 import { DatabaseIsolationLevel } from 'peculiar-orm';
 import * as jwt from 'jsonwebtoken';
-import { AuthMethod, IUser, OAuthProvider, VerificationStatus } from '@Core/Application/Interface/Entities/auth-and-user/IUser';
+import { AuthMethod, OAuthProvider, VerificationStatus } from '@Core/Application/Interface/Entities/auth-and-user/IUser';
+import type { IUser } from '@Core/Application/Interface/Entities/auth-and-user/IUser';
 import { CreateUserDTO, UpdateUserDTO, UserResponseDTO } from '@Core/Application/DTOs/UserDTO';
 import { UserRole } from '@Core/Application/Enums/UserRole';
 import { UserRepository } from '../Repository/SQL/users/UserRepository';
 import { VerificationRepository } from '../Repository/SQL/auth/VerificationRepository';
 import { CryptoService } from '@Core/Services/CryptoService';
-import { IVerification, VerificationType } from '@Core/Application/Interface/Entities/auth-and-user/IVerification';
+import { VerificationType } from '@Core/Application/Interface/Entities/auth-and-user/IVerification';
+import type { IVerification } from '@Core/Application/Interface/Entities/auth-and-user/IVerification';
 import { UserStatus } from '@Core/Application/Enums/UserStatus';
 import { User } from '@Core/Application/Entities/User';
 import { Console, LogLevel } from '../Utils/Console';

@@ -1,6 +1,6 @@
 import { inject, injectable } from 'inversify';
 import { BaseRepository, TransactionManager } from 'peculiar-orm';
-import { IVerification } from '@Core/Application/Interface/Entities/auth-and-user/IVerification';
+import type { IVerification } from '@Core/Application/Interface/Entities/auth-and-user/IVerification';
 import { TableNames } from '@Core/Application/Enums/TableNames';
 import { TYPES } from '@Core/Types/Constants';
 import { DatabaseError } from '@Core/Application/Error/AppError';

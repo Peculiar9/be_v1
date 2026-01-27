@@ -1,6 +1,6 @@
 import { UserRole } from '../Enums/UserRole';
 import { LoginType } from '../Enums/LoginType';
-import { ILocation, IUser } from '../Interface/Entities/auth-and-user/IUser';
+import type { ILocation, IUser } from '../Interface/Entities/auth-and-user/IUser';
 import { UserResponseDTO } from './UserDTO';
 import { 
   IsEmail, 
