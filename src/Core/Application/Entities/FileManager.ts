@@ -1,5 +1,5 @@
 import { Column, ForeignKey, Index } from "peculiar-orm";
-import { IFileManager } from "../Interface/Entities/file-manager/IFileManager";
+import type { IFileManager } from "../Interface/Entities/file-manager/IFileManager";
 import { CreateFileManagerDTO } from "../DTOs/FileManagerDTO";
 import { Console, LogLevel } from "@Infrastructure/Utils/Console";
 import { TableNames } from "../Enums/TableNames";

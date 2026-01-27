@@ -1,7 +1,7 @@
 import { Column, CompositeIndex, ForeignKey, Index } from "peculiar-orm";
 import { ValidationError } from "../Error/AppError";
 import { TableNames } from "../Enums/TableNames";
-import { ITransaction } from "../Interface/Entities/payments/IPayment";
+import type { ITransaction } from "../Interface/Entities/payments/IPayment";
 import { TransactionType, TransactionStatus, RelatedEntityType } from "../Interface/Entities/payments/IPayment";
 
 /**

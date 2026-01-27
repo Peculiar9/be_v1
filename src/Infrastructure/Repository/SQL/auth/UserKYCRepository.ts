@@ -4,7 +4,7 @@ import { TYPES } from "@Core/Types/Constants";
 import { TableNames } from "@Core/Application/Enums/TableNames";
 import { UserKYC } from "@Core/Application/Entities/UserKYC";
 import { KYCStage, KYCStatus } from "@Core/Application/Interface/Entities/auth-and-user/IVerification";
-import { IRepository } from "@Core/Application/Interface/Persistence/Repository/IRepository";
+import type { IRepository } from "@Core/Application/Interface/Persistence/Repository/IRepository";
 
 @injectable()
 export class UserKYCRepository extends BaseRepository<UserKYC> implements IRepository<UserKYC> {

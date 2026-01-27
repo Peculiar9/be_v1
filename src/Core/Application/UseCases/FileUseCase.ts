@@ -1,8 +1,8 @@
 import { inject, injectable } from 'inversify';
-import { IFileUseCase } from '../Interface/UseCases/IFileUseCase';
+import type { IFileUseCase } from '../Interface/UseCases/IFileUseCase';
 import { TYPES } from '../../Types/Constants';
-import { IMediaService } from '../Interface/Services/IMediaService';
-import { IFileService } from '../Interface/Services/IFileService';
+import type { IMediaService } from '../Interface/Services/IMediaService';
+import type { IFileService } from '../Interface/Services/IFileService';
 import { ValidationError } from '../Error/AppError';
 import { Console, LogLevel } from '@Infrastructure/Utils/Console';
 

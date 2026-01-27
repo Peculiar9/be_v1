@@ -1,6 +1,6 @@
 // Authentication use cases interface
 
-import { IUser } from "../Entities/auth-and-user/IUser";
+import type { IUser } from "../Entities/auth-and-user/IUser";
 import { UserRegistrationDTO } from "../../DTOs/AuthDTOV2";
 import {
     ChangePasswordDTO,

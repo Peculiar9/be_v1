@@ -1,5 +1,5 @@
-import { IDriversLicenseData } from "../../Types/KYCTypes";
-import { IUserKYC } from "../Entities/auth-and-user/IVerification";
+import type { IDriversLicenseData } from "../../Types/KYCTypes";
+import type { IUserKYC } from "../Entities/auth-and-user/IVerification";
 
 export interface IKYCUseCase {
   /**

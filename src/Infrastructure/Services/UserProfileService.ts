@@ -1,8 +1,8 @@
 import { injectable, inject } from "inversify";
 import { TYPES } from "@Core/Types/Constants";
-import { IUserProfileService } from "@Core/Application/Interface/Services/IUserProfileService";
+import type { IUserProfileService } from "@Core/Application/Interface/Services/IUserProfileService";
 import { UserResponseDTO, UpdateUserDTO } from "@Core/Application/DTOs/UserDTO";
-import { IUser } from "@Core/Application/Interface/Entities/auth-and-user/IUser";
+import type { IUser } from "@Core/Application/Interface/Entities/auth-and-user/IUser";
 import { UserRepository } from "../Repository/SQL/users/UserRepository";
 import { TransactionManager } from "../Repository/SQL/Abstractions/TransactionManager";
 import { Console, LogLevel } from "../Utils/Console";
