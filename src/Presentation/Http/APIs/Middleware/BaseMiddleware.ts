@@ -1,4 +1,4 @@
-import { Context, Next } from 'hono';
+import type { Context, Next } from 'hono';
 import { ValidationError } from '@Core/Application/Error/AppError';
 import { ResponseMessage } from '@Core/Application/Response/ResponseFormat';
 import { injectable } from 'inversify';
