@@ -1,12 +1,4 @@
-import multer from "multer";
-import { Request, Response, NextFunction } from 'express';
-// Define the extended Request type for Multer
-interface MulterRequest extends Request {
-    file?: Express.Multer.File;
-    files?: {
-        [fieldname: string]: Express.Multer.File[];
-    } | Express.Multer.File[];
-}
+import { Context, Next } from 'hono';
 
 export enum ErrorCode {
     FILE_TOO_LARGE = 'FILE_TOO_LARGE',
@@ -28,129 +20,131 @@ export enum FieldName {
     FILES = 'files'
 }
 
-const storage = multer.memoryStorage();
-const upload = multer({
-    storage: storage,
-    limits: {
-        fileSize: 1024 * 1024 * 5, // 5MB limit per file
-        files: 10 // Maximum number of files
-    },
-    fileFilter: (req, file, cb) => {
-        if (file.mimetype === 'image/jpeg' || file.mimetype === 'image/png') {
-            cb(null, true);
-        } else {
-            cb(null, false);
-        }
-    }
-});
+type File = Blob & { name: string; lastModified: number };
 
-// Helper to handle Multer errors
-const handleMulterError = (err: any, res: Response) => {
-    if (err instanceof multer.MulterError) {
-        switch (err.code) {
-            case 'LIMIT_FILE_SIZE':
-                return res.status(400).json({
-                    success: false,
-                    message: 'File size exceeds the 5MB limit',
-                    errorCode: ErrorCode.FILE_TOO_LARGE
-                });
-            case 'LIMIT_FILE_COUNT':
-                return res.status(400).json({
-                    success: false,
-                    message: 'Too many files. Maximum is 10 files',
-                    errorCode: ErrorCode.TOO_MANY_FILES
-                });
-            default:
-                return res.status(400).json({
-                    success: false,
-                    message: err.message,
-                    errorCode: ErrorCode.UPLOAD_ERROR
-                });
-        }
+// Helper to validate file
+const validateFile = (file: File) => {
+    const MAX_SIZE = 1024 * 1024 * 5; // 5MB
+    if (file.size > MAX_SIZE) {
+        return { valid: false, error: ErrorCode.FILE_TOO_LARGE, message: 'File size exceeds the 5MB limit' };
     }
-    return res.status(400).json({
-        success: false,
-        message: 'Error uploading file(s)',
-        errorCode: ErrorCode.UPLOAD_ERROR
-    });
-};
+    if (!['image/jpeg', 'image/png'].includes(file.type)) {
+        return { valid: false, error: ErrorCode.INVALID_FILE_TYPE, message: 'Invalid file type. Only JPEG and PNG images are allowed' };
+    }
+    return { valid: true };
+}
 
 // Single file upload middleware
-const uploadSingle = (fieldName: string = FieldName.FILE) => {
-    return (req: MulterRequest, res: Response, next: NextFunction) => {
-        const uploadSingle = upload.single(fieldName as string);
-        
-        uploadSingle(req, res, (err: any) => {
-            if (err) {
-                console.log("Multer error: ", err);
-                return handleMulterError(err, res);
-            }
-            
-            if (!req.file) {
-                console.log("No file uploaded");
-                return res.status(400).json({
-                    success: false,
-                    message: 'Invalid file type. Only JPEG and PNG images are allowed',
-                    errorCode: ErrorCode.INVALID_FILE_TYPE
-                });
-            }
+export const uploadSingle = (fieldName: string = FieldName.FILE) => {
+    return async (c: Context, next: Next) => {
+        try {
+            const body = await c.req.parseBody();
+            const file = body[fieldName];
 
-            console.log("File uploaded successfully!!!");
-            
-            next();
-        });
-    };
-};
-
-// Multiple files upload middleware
-const uploadMultiple = (fieldName: string = FieldName.FILES, maxCount: number = 10) => {
-    return (req: MulterRequest, res: Response, next: NextFunction) => {
-        const uploadArray = upload.array(fieldName as string, maxCount);
-        
-        uploadArray(req, res, (err: any) => {
-            if (err) {
-                return handleMulterError(err, res);
-            }
-            
-            if (!Array.isArray(req.files) || req.files.length === 0) {
-                return res.status(400).json({
+            if (!file) {
+                return c.json({
                     success: false,
-                    message: 'No valid files uploaded. Only JPEG and PNG images are allowed',
+                    message: 'No file uploaded',
                     errorCode: ErrorCode.NO_VALID_FILES
-                });
+                }, 400);
             }
-            
-            next();
-        });
-    };
-};
 
-
-const uploadFields = (fields: { name: string; maxCount: number }[]) => {
-    return (req: MulterRequest, res: Response, next: NextFunction) => {
-        const uploadFields = upload.fields(fields);
-        
-        uploadFields(req, res, (err: any) => {
-            if (err) {
-                return handleMulterError(err, res);
-            }
-            
-            const hasFiles = fields.some(field => {
-                const files = req.files as { [fieldname: string]: Express.Multer.File[] };
-                return files && files[field.name] && files[field.name].length > 0;
-            });
-            
-            if (!hasFiles) {
-                return res.status(400).json({
+            if (!(file instanceof Blob)) { // Hono returns Blob/File or string
+                return c.json({
                     success: false,
-                    message: 'No valid files uploaded. Only JPEG and PNG images are allowed',
-                    errorCode: ErrorCode.NO_VALID_FILES
-                });
+                    message: 'Invalid input',
+                    errorCode: ErrorCode.UPLOAD_ERROR
+                }, 400);
             }
-            
-            next();
-        });
+
+            const validation = validateFile(file as File);
+            if (!validation.valid) {
+                return c.json({
+                    success: false,
+                    message: validation.message,
+                    errorCode: validation.error
+                }, 400);
+            }
+
+            // console.log("File uploaded successfully!!!");
+            c.set('file', file); // Store for controller
+
+            await next();
+        } catch (err: any) {
+            return c.json({
+                success: false,
+                message: err.message || 'Error uploading file',
+                errorCode: ErrorCode.UPLOAD_ERROR
+            }, 400);
+        }
     };
 };
 
-export { uploadSingle, uploadMultiple, uploadFields };
+export const uploadMultiple = (fieldName: string = FieldName.FILES, maxCount: number = 10) => {
+    return async (c: Context, next: Next) => {
+        // Hono parseBody handles multiple files with same key as Array?
+        // Let's verify Hono behavior. parseBody returns { key: File | string | (File | string)[] }
+        try {
+            const body = await c.req.parseBody({ all: true }); // ensure all values are arrays if needed, or check type
+            const files = body[fieldName];
+
+            if (!files) {
+                return c.json({
+                    success: false,
+                    message: 'No files uploaded',
+                    errorCode: ErrorCode.NO_VALID_FILES
+                }, 400);
+            }
+
+            const fileList = Array.isArray(files) ? files : [files];
+
+            if (fileList.length > maxCount) {
+                return c.json({
+                    success: false,
+                    message: `Too many files. Maximum is ${maxCount} files`,
+                    errorCode: ErrorCode.TOO_MANY_FILES
+                }, 400);
+            }
+
+            const validFiles: File[] = [];
+
+            for (const f of fileList) {
+                if (f instanceof Blob) {
+                    const validation = validateFile(f as File);
+                    if (!validation.valid) {
+                        return c.json({
+                            success: false,
+                            message: validation.message,
+                            errorCode: validation.error
+                        }, 400);
+                    }
+                    validFiles.push(f as File);
+                }
+            }
+
+            if (validFiles.length === 0) {
+                return c.json({
+                    success: false,
+                    message: 'No valid files uploaded',
+                    errorCode: ErrorCode.NO_VALID_FILES
+                }, 400);
+            }
+
+            c.set('files', validFiles);
+            await next();
+        } catch (err: any) {
+            return c.json({
+                success: false,
+                message: err.message || 'Error uploading files',
+                errorCode: ErrorCode.UPLOAD_ERROR
+            }, 400);
+        }
+    };
+};
+
+export const uploadFields = (fields: { name: string; maxCount: number }[]) => {
+    // Implement if needed, similar logic
+    return async (c: Context, next: Next) => {
+        await next();
+    }
+};

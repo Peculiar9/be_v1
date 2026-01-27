@@ -1,13 +1,13 @@
-import { Request, Response } from 'express';
+import { Context } from 'hono';
 import { injectable, inject } from 'inversify';
-import { controller, httpPost, httpDelete, httpGet } from 'inversify-express-utils';
+import { controller, httpPost, httpDelete, httpGet, ctx } from 'hono-injector';
 import { BaseController } from '../BaseController';
 import { TYPES } from '@Core/Types/Constants';
 import { IMediaService, ImageTransformation } from '@Core/Application/Interface/Services/IMediaService';
 import { AuthMiddleware } from '../../Middleware/AuthMiddleware';
 import { uploadSingle, uploadMultiple, FieldName } from '../../Middleware/MulterMiddleware';
 
-@controller('/api/v1/media')
+@controller('/media')
 export class MediaController extends BaseController {
     constructor(
         @inject(TYPES.MediaService) private readonly mediaService: IMediaService,
@@ -20,33 +20,33 @@ export class MediaController extends BaseController {
      * Upload a single file
      * @route POST /api/v1/media/upload
      */
-    @httpPost('/upload', uploadSingle(FieldName.FILE))
-    async uploadFile(req: Request, res: Response) {
+    @httpPost('/upload', [uploadSingle(FieldName.FILE)])
+    async uploadFile(@ctx() c: Context) {
         try {
-            const file = req.file;
+            const file = c.get('file');
             if (!file) {
-                return this.error(res, 'No file provided', 400);
+                return this.error(c, 'No file provided', 400);
             }
 
             // Get folder from query params or use default
-            const folder = req.query.folder as string || 'uploads';
-            
+            const folder = c.req.query('folder') || 'uploads';
+
             // Get public_id from query params if available
-            const publicId = req.query.public_id as string;
-            
+            const publicId = c.req.query('public_id');
+
             // Extract file type from mimetype
-            const resourceType = file.mimetype.startsWith('image/') ? 'image' as const : 
-                              file.mimetype.startsWith('video/') ? 'video' as const : 'raw' as const;
-            
+            const resourceType = file.type.startsWith('image/') ? 'image' as const :
+                file.type.startsWith('video/') ? 'video' as const : 'raw' as const;
+
             const uploadOptions = {
                 folder,
                 publicId,
                 resourceType
             };
 
-            const result = await this.mediaService.uploadFile(file.buffer, uploadOptions);
-            
-            return this.success(res, {
+            const result = await this.mediaService.uploadFile(await file.arrayBuffer(), uploadOptions);
+
+            return this.success(c, {
                 url: result.url,
                 secureUrl: result.secureUrl,
                 publicId: result.publicId,
@@ -56,7 +56,7 @@ export class MediaController extends BaseController {
             }, 'File uploaded successfully');
         } catch (error: any) {
             console.error('Error uploading file:', error);
-            return this.error(res, `Failed to upload file: ${error.message}`, 500, error);
+            return this.error(c, `Failed to upload file: ${error.message}`, 500, error);
         }
     }
 
@@ -64,28 +64,29 @@ export class MediaController extends BaseController {
      * Upload multiple files
      * @route POST /api/v1/media/upload/multiple
      */
-    @httpPost('/upload/multiple', uploadMultiple(FieldName.FILES))
-    async uploadMultipleFiles(req: Request, res: Response) {
+    @httpPost('/upload/multiple', [uploadMultiple(FieldName.FILES)])
+    async uploadMultipleFiles(@ctx() c: Context) {
         try {
-            const files = req.files as Express.Multer.File[];
+            const files = c.get('files') as any[]; // From Hono Context
             if (!files || files.length === 0) {
-                return this.error(res, 'No files provided', 400);
+                return this.error(c, 'No files provided', 400);
             }
 
             // Get folder from query params or use default
-            const folder = req.query.folder as string || 'uploads';
-            
+            const folder = c.req.query('folder') || 'uploads';
+
             // Process files one by one
-            const uploadPromises = files.map(file => {
-                return this.mediaService.uploadFile(file.buffer, {
+            const uploadPromises = files.map(async file => {
+                const buffer = await file.arrayBuffer();
+                return this.mediaService.uploadFile(buffer, {
                     folder,
-                    resourceType: file.mimetype.startsWith('image/') ? 'image' as const : 
-                                 file.mimetype.startsWith('video/') ? 'video' as const : 'raw' as const
+                    resourceType: file.type.startsWith('image/') ? 'image' as const :
+                        file.type.startsWith('video/') ? 'video' as const : 'raw' as const
                 });
             });
 
             const results = await Promise.all(uploadPromises);
-            
+
             const responseData = results.map(result => ({
                 url: result.url,
                 secureUrl: result.secureUrl,
@@ -95,10 +96,10 @@ export class MediaController extends BaseController {
                 resourceType: result.resourceType
             }));
 
-            return this.success(res, responseData, 'Files uploaded successfully');
+            return this.success(c, responseData, 'Files uploaded successfully');
         } catch (error: any) {
             console.error('Error uploading multiple files:', error);
-            return this.error(res, `Failed to upload files: ${error.message}`, 500, error);
+            return this.error(c, `Failed to upload files: ${error.message}`, 500, error);
         }
     }
 
@@ -107,23 +108,23 @@ export class MediaController extends BaseController {
      * @route DELETE /api/v1/media/:publicId
      */
     @httpDelete('/:publicId')
-    async deleteFile(req: Request, res: Response) {
+    async deleteFile(@ctx() c: Context) {
         try {
-            const { publicId } = req.params;
+            const publicId = c.req.param('publicId');
             if (!publicId) {
-                return this.error(res, 'Public ID is required', 400);
+                return this.error(c, 'Public ID is required', 400);
             }
 
             const result = await this.mediaService.deleteFile(publicId);
-            
+
             if (!result.success) {
-                return this.error(res, result.message || 'Failed to delete file', result.statusCode || 400);
+                return this.error(c, result.message || 'Failed to delete file', result.statusCode || 400);
             }
 
-            return this.success(res, result, 'File deleted successfully');
+            return this.success(c, result, 'File deleted successfully');
         } catch (error: any) {
             console.error('Error deleting file:', error);
-            return this.error(res, `Failed to delete file: ${error.message}`, 500, error);
+            return this.error(c, `Failed to delete file: ${error.message}`, 500, error);
         }
     }
 
@@ -132,33 +133,33 @@ export class MediaController extends BaseController {
      * @route GET /api/v1/media/transform/:publicId
      */
     @httpGet('/transform/:publicId')
-    async getTransformedUrl(req: Request, res: Response) {
+    async getTransformedUrl(@ctx() c: Context) {
         try {
-            const { publicId } = req.params;
+            const publicId = c.req.param('publicId');
             if (!publicId) {
-                return this.error(res, 'Public ID is required', 400);
+                return this.error(c, 'Public ID is required', 400);
             }
 
             // Parse transformation options from query params
             const transformations: ImageTransformation = {
-                width: req.query.width ? parseInt(req.query.width as string) : undefined,
-                height: req.query.height ? parseInt(req.query.height as string) : undefined,
-                crop: req.query.crop as "fill" | "scale" | "fit" | "thumb" | "crop" | undefined,
-                gravity: req.query.gravity as "auto" | "face" | "center" | "north" | "south" | "east" | "west" | undefined,
-                quality: req.query.quality ? parseInt(req.query.quality as string) : undefined,
-                format: req.query.format as "auto" | "jpg" | "png" | "webp" | "gif" | undefined,
-                effect: req.query.effect as string,
-                angle: req.query.angle ? parseInt(req.query.angle as string) : undefined,
-                radius: req.query.radius ? parseInt(req.query.radius as string) : undefined,
-                background: req.query.background as string,
+                width: c.req.query('width') ? parseInt(c.req.query('width') as string) : undefined,
+                height: c.req.query('height') ? parseInt(c.req.query('height') as string) : undefined,
+                crop: c.req.query('crop') as "fill" | "scale" | "fit" | "thumb" | "crop" | undefined,
+                gravity: c.req.query('gravity') as "auto" | "face" | "center" | "north" | "south" | "east" | "west" | undefined,
+                quality: c.req.query('quality') ? parseInt(c.req.query('quality') as string) : undefined,
+                format: c.req.query('format') as "auto" | "jpg" | "png" | "webp" | "gif" | undefined,
+                effect: c.req.query('effect') as string,
+                angle: c.req.query('angle') ? parseInt(c.req.query('angle') as string) : undefined,
+                radius: c.req.query('radius') ? parseInt(c.req.query('radius') as string) : undefined,
+                background: c.req.query('background') as string,
             };
 
             const url = await this.mediaService.getTransformedUrl(publicId, transformations);
-            
-            return this.success(res, { url }, 'Transformation URL generated successfully');
+
+            return this.success(c, { url }, 'Transformation URL generated successfully');
         } catch (error: any) {
             console.error('Error generating transformation URL:', error);
-            return this.error(res, `Failed to generate transformation URL: ${error.message}`, 500, error);
+            return this.error(c, `Failed to generate transformation URL: ${error.message}`, 500, error);
         }
     }
 
@@ -167,19 +168,19 @@ export class MediaController extends BaseController {
      * @route GET /api/v1/media/:publicId
      */
     @httpGet('/:publicId')
-    async getFileDetails(req: Request, res: Response) {
+    async getFileDetails(@ctx() c: Context) {
         try {
-            const { publicId } = req.params;
+            const publicId = c.req.param('publicId');
             if (!publicId) {
-                return this.error(res, 'Public ID is required', 400);
+                return this.error(c, 'Public ID is required', 400);
             }
 
             const details = await this.mediaService.getFileDetails(publicId);
-            
-            return this.success(res, details, 'File details retrieved successfully');
+
+            return this.success(c, details, 'File details retrieved successfully');
         } catch (error: any) {
             console.error('Error retrieving file details:', error);
-            return this.error(res, `Failed to retrieve file details: ${error.message}`, 500, error);
+            return this.error(c, `Failed to retrieve file details: ${error.message}`, 500, error);
         }
     }
 }

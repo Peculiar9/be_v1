@@ -1,4 +1,4 @@
-import { Request, Response, NextFunction } from 'express';
+import { Context, Next } from 'hono';
 import { injectable } from 'inversify';
 
 @injectable()
@@ -10,38 +10,36 @@ export class CallbackMiddleware {
      * @param acknowledgeTimeout Optional timeout in ms before sending acknowledgment (default: 2000ms)
      */
     public static acknowledge(acknowledgeTimeout: number = CallbackMiddleware.ACKNOWLEDGMENT_TIMEOUT) {
-        return async (req: Request, res: Response, next: NextFunction) => {
-            // Create a promise that resolves after the specified timeout
-            const timeoutPromise = new Promise<void>((resolve) => {
+        return async (c: Context, next: Next) => {
+            // Timeout promise: resolves with an early 200 response
+            const timeoutPromise = new Promise<Response>((resolve) => {
                 setTimeout(() => {
-                    // Only send response if it hasn't been sent yet
-                    if (!res.headersSent) {
-                        res.status(200).json({
-                            status: 'success',
-                            message: 'Webhook received and being processed'
-                        });
-                    }
-                    resolve();
+                    resolve(c.json({
+                        status: 'success',
+                        message: 'Webhook received and being processed'
+                    }, 200));
                 }, acknowledgeTimeout);
             });
 
-            try {
-                // Start processing in the background
-                const processingPromise = new Promise<void>((resolve) => {
-                    next();
-                    resolve();
-                });
+            // Process promise: runs the next middleware/handler
+            // Hono middleware returns Promise<Response | void>
+            const processingPromise = next();
 
-                // Race between timeout and processing
-                // If processing completes before timeout, the response will be handled normally
-                // If timeout wins, we'll send the acknowledgment and continue processing
-                await Promise.race([processingPromise, timeoutPromise]);
-            } catch (error) {
-                // If an error occurs before the timeout, let the error handler deal with it
-                if (!res.headersSent) {
-                    next(error);
-                }
+            // Race: if handler finishes first, we return its result (or void).
+            // If timeout finishes first, we return the timeout response.
+            // Note: `next()` will continue running in background if timeout wins?
+            // Yes, detached promise.
+
+            const result = await Promise.race([timeoutPromise, processingPromise]);
+
+            if (result instanceof Response) {
+                return result;
             }
+
+            // If result is from processingPromise (void or Response), and it wasn't the timeout response,
+            // we do nothing (void) or return it.
+            // If next() returned void, we return void.
+            return result;
         };
     }
 
@@ -50,30 +48,35 @@ export class CallbackMiddleware {
      * @param secret The webhook secret for signature validation
      */
     public static validateSignature(secret: string) {
-        return (req: Request, res: Response, next: NextFunction) => {
+        return async (c: Context, next: Next) => {
             try {
-                const signature = req.headers['x-webhook-signature'];
-                
+                const signature = c.req.header('x-webhook-signature') || c.req.header('stripe-signature');
+
                 // If no signature is required or signature is valid
                 if (!secret || !signature) {
-                    return next();
+                    await next();
+                    return;
                 }
+
+                // Ensure we have the raw body text for verification
+                // Hono caches this so subsequent c.req.json() calls work fine
+                const body = await c.req.text();
 
                 // TODO: Implement signature validation logic here
                 // This will depend on the specific webhook provider's signature format
                 // Example:
                 // const computedSignature = crypto
                 //     .createHmac('sha256', secret)
-                //     .update(JSON.stringify(req.body))
+                //     .update(body)
                 //     .digest('hex');
-                
+
                 // if (signature !== computedSignature) {
                 //     throw new Error('Invalid webhook signature');
                 // }
 
-                next();
-            } catch (error) {
-                next(error);
+                await next();
+            } catch (error: any) {
+                return c.json({ error: error.message }, 400);
             }
         };
     }

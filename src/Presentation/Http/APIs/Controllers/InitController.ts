@@ -1,54 +1,56 @@
-import { controller, httpGet } from "inversify-express-utils";
+import { controller, httpGet, ctx } from "hono-injector";
+import { Context } from "hono";
 import { UtilityService } from "@Core/Services/UtilityService";
-import { API_DOC_URL, API_PATH, APP_NAME, APP_VERSION } from "@Core/Types/Constants";
+import { API_DOC_URL, APP_NAME, APP_VERSION } from "@Core/Types/Constants";
 import { BaseController } from "./BaseController";
 import { ResponseMessage } from "@Core/Application/Response/ResponseFormat";
 
-@controller(``)
-export class InitController extends BaseController{
-    constructor(){
+@controller(`/init`)
+export class InitController extends BaseController {
+    constructor() {
         super();
     }
 
     @httpGet('')
-    async baseMethod(){
-         //This is what anyone who calls the base Url sees
-         console.log('it got here!!!')!
+    async baseMethod() {
+        //This is what anyone who calls the base Url sees
+        console.log('it got here!!!')
         const baseRequestPayload = this.constructBaseRouterPayload();
         return baseRequestPayload;
-     }
+    }
+
     @httpGet('/health')
-    async healthCheck(){
+    async healthCheck() {
         return {
             status: 'ok',
             message: ResponseMessage.SERVICE_RUNNING
         }
-     }
-     
-     private constructBaseRouterPayload(){
-         const reqTime = Date.now();
-         const reqTimeUnix = UtilityService.dateToUnix(reqTime);
-         const baseUrlPayload: IBaseUrlPayload = 
-         {
+    }
+
+    private constructBaseRouterPayload() {
+        const reqTime = Date.now();
+        const reqTimeUnix = UtilityService.dateToUnix(reqTime);
+        const baseUrlPayload: IBaseUrlPayload =
+        {
             api_info: {
-              name: `${APP_NAME} Backend Service`,
-              version: APP_VERSION,
-              description: `API for managing ${APP_NAME} functionalities and requests`,
-              documentation: `https://postman.docs/${API_DOC_URL}`
+                name: `${APP_NAME} Backend Service`,
+                version: APP_VERSION,
+                description: `API for managing ${APP_NAME} functionalities and requests`,
+                documentation: `https://postman.docs/${API_DOC_URL}`
             },
             success: true,
             authentication: "This API needs AccessKeys and JWT to gain access",
             scopes: [],
             request_time: reqTimeUnix
-         }
- 
-         return baseUrlPayload;
-     }
-     
-} 
+        }
+
+        return baseUrlPayload;
+    }
+
+}
 
 
-interface IBaseUrlPayload{
+interface IBaseUrlPayload {
     api_info: IApiInfo;
     success: boolean;
     authentication: string;
