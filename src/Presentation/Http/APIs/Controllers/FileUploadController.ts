@@ -1,5 +1,5 @@
 import { controller, httpGet, httpPost, ctx } from 'hono-injector';
-import { Context } from 'hono';
+import type { Context } from 'hono';
 import { BaseController } from './BaseController';
 import { ResponseMessage } from '@Core/Application/Response/ResponseFormat';
 import { AuthMiddleware } from '../Middleware/AuthMiddleware';

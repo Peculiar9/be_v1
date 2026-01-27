@@ -2,14 +2,14 @@ import { BASE_PATH } from "@Core/Types/Constants";
 import { controller, httpGet, httpPost, httpPut, ctx, body } from "hono-injector";
 import { BaseController } from "../BaseController";
 import { ResponseMessage } from "@Core/Application/Response/ResponseFormat";
-import { Context } from "hono";
+import type { Context } from "hono";
 import { UserRegistrationDTO } from "@Core/Application/DTOs/AuthDTOV2";
 import { inject } from "inversify";
 import { TYPES } from "@Core/Types/Constants";
-import { IAuthUseCase } from "@Core/Application/Interface/UseCases/IAuthUseCase";
+import type { IAuthUseCase } from "@Core/Application/Interface/UseCases/IAuthUseCase";
 import { ForgotPasswordDTO, ResetPasswordDTO, ChangePasswordDTO, RefreshTokenDTO, VerifyEmailDTO, LoginDTO } from "@Core/Application/DTOs/AuthDTO";
 import AuthMiddleware from "../../Middleware/AuthMiddleware";
-import { IUser } from "@Core/Application/Interface/Entities/auth-and-user/IUser";
+import type { IUser } from "@Core/Application/Interface/Entities/auth-and-user/IUser";
 import { uploadSingle } from "../../Middleware/MulterMiddleware";
 import { validationMiddleware } from "../../Middleware/ValidationMiddleware";
 

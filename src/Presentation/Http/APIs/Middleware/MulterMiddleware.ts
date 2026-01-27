@@ -1,4 +1,4 @@
-import { Context, Next } from 'hono';
+import type { Context, Next } from 'hono';
 
 export enum ErrorCode {
     FILE_TOO_LARGE = 'FILE_TOO_LARGE',

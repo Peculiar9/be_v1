@@ -1,13 +1,13 @@
 import { controller, httpPost, ctx } from "hono-injector";
 import { BaseController } from "./BaseController";
-import { Context } from "hono";
+import type { Context } from "hono";
 import { inject } from "inversify";
 import { TYPES } from "@Core/Types/Constants";
 import AuthMiddleware from "../Middleware/AuthMiddleware";
 import { uploadSingle } from "../Middleware/MulterMiddleware";
 import { ValidationError } from "@Core/Application/Error/AppError";
-import { IUser } from "@Core/Application/Interface/Entities/auth-and-user/IUser";
-import { IFileUseCase } from "@Core/Application/Interface/UseCases/IFileUseCase";
+import type { IUser } from "@Core/Application/Interface/Entities/auth-and-user/IUser";
+import type { IFileUseCase } from "@Core/Application/Interface/UseCases/IFileUseCase";
 
 @controller(`/files`)
 export class FileController extends BaseController {

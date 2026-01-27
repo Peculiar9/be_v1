@@ -1,9 +1,9 @@
-import { Context } from 'hono';
+import type { Context } from 'hono';
 import { injectable, inject } from 'inversify';
 import { controller, httpPost, httpDelete, httpGet, ctx } from 'hono-injector';
 import { BaseController } from '../BaseController';
 import { TYPES } from '@Core/Types/Constants';
-import { IMediaService, ImageTransformation } from '@Core/Application/Interface/Services/IMediaService';
+import type { IMediaService, ImageTransformation } from '@Core/Application/Interface/Services/IMediaService';
 import { AuthMiddleware } from '../../Middleware/AuthMiddleware';
 import { uploadSingle, uploadMultiple, FieldName } from '../../Middleware/MulterMiddleware';
 

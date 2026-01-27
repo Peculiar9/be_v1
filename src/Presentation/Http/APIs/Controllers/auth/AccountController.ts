@@ -2,8 +2,8 @@ import { controller, httpGet, httpPost, httpPut, ctx, body } from "hono-injector
 import { BaseController } from "../BaseController";
 import { inject } from "inversify";
 import { TYPES } from "@Core/Types/Constants";
-import { IAccountUseCase } from "@Core/Application/Interface/UseCases/IAccountUseCase";
-import { Context } from "hono";
+import type { IAccountUseCase } from "@Core/Application/Interface/UseCases/IAccountUseCase";
+import type { Context } from "hono";
 import { CreateUserDTO, UpdateUserDTO } from "@Core/Application/DTOs/UserDTO";
 import { validationMiddleware } from "../../Middleware/ValidationMiddleware";
 import AuthMiddleware from "../../Middleware/AuthMiddleware";

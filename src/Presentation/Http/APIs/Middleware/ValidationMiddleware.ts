@@ -1,6 +1,6 @@
 import { plainToInstance } from 'class-transformer';
 import { validate, ValidationError } from 'class-validator';
-import { Context, Next } from 'hono';
+import type { Context, Next } from 'hono';
 
 export function validationMiddleware(dtoClass: any) {
   return async (c: Context, next: Next) => {

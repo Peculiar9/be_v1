@@ -1,12 +1,12 @@
-import { Context } from 'hono';
+import type { Context } from 'hono';
 import { inject } from 'inversify';
 import { controller, httpGet, httpPost, httpDelete, httpPut, ctx, body } from 'hono-injector';
 import { TYPES } from '@Core/Types/Constants';
-import { IPaymentService } from '@Core/Application/Interface/Services/IPaymentService';
+import type { IPaymentService } from '@Core/Application/Interface/Services/IPaymentService';
 import AuthMiddleware from '../../Middleware/AuthMiddleware';
 import { BaseController } from '../BaseController';
 import { ResponseMessage } from '@Core/Application/Response/ResponseFormat';
-import { IUser } from '@Core/Application/Interface/Entities/auth-and-user/IUser';
+import type { IUser } from '@Core/Application/Interface/Entities/auth-and-user/IUser';
 
 @controller(`/payment`)
 export class PaymentController extends BaseController {

@@ -1,4 +1,4 @@
-import { IAuthUseCase } from "../Interface/UseCases/IAuthUseCase";
+import type { IAuthUseCase } from "../Interface/UseCases/IAuthUseCase";
 import { UserRegistrationDTO } from "../DTOs/AuthDTOV2";
 import { ChangePasswordDTO, ForgotPasswordDTO, IEmailVerificationResponse, LoginResponseDTO, RefreshTokenDTO, ResetPasswordDTO, VerifyEmailDTO } from "../DTOs/AuthDTO";
 import { LoginDTO } from "../DTOs/AuthDTO";

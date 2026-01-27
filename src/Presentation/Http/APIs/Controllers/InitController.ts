@@ -1,11 +1,11 @@
+import type { Context } from "hono";
 import { controller, httpGet, ctx } from "hono-injector";
-import { Context } from "hono";
 import { UtilityService } from "@Core/Services/UtilityService";
 import { API_DOC_URL, APP_NAME, APP_VERSION } from "@Core/Types/Constants";
 import { BaseController } from "./BaseController";
 import { ResponseMessage } from "@Core/Application/Response/ResponseFormat";
 
-@controller(`/init`)
+@controller(`/`)
 export class InitController extends BaseController {
     constructor() {
         super();
@@ -19,13 +19,8 @@ export class InitController extends BaseController {
         return baseRequestPayload;
     }
 
-    @httpGet('/health')
-    async healthCheck() {
-        return {
-            status: 'ok',
-            message: ResponseMessage.SERVICE_RUNNING
-        }
-    }
+    // Health check moved to HealthController
+
 
     private constructBaseRouterPayload() {
         const reqTime = Date.now();

@@ -1,10 +1,10 @@
-import { Context } from 'hono';
+import type { Context } from 'hono';
 import { inject } from 'inversify';
 import { controller, httpPost, ctx } from 'hono-injector';
 import { TYPES } from '@Core/Types/Constants';
 import { BaseController } from '../BaseController';
 import { CallbackMiddleware } from '../../Middleware/CallbackMiddleware';
-import { IStripeWebhookService } from '@Core/Application/Interface/Services/IStripeWebhookService';
+import type { IStripeWebhookService } from '@Core/Application/Interface/Services/IStripeWebhookService';
 import { Console } from '@Infrastructure/Utils/Console';
 import Stripe from 'stripe';
 

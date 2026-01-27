@@ -1,4 +1,4 @@
-import { Context, Next } from 'hono';
+import type { Context, Next } from 'hono';
 import { injectable, inject } from 'inversify';
 import { TYPES } from '@Core/Types/Constants';
 import { AuthenticationError, ForbiddenError } from '@Core/Application/Error/AppError';
