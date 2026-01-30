@@ -33,10 +33,16 @@ export class BaseController extends BaseMiddleware {
       };
     }
 
-    // Hono status code must be a valid StatusCode type, so we might need casting or careful typing
-    // specific status codes like 400, 401 etc are fine.
     // Ensure status is within valid range (100-599). If 0 or invalid, default to 500.
     const validStatus = (status && status >= 100 && status < 600) ? status : 500;
+
+    // DEBUG LOG
+    if (status !== validStatus || !status) {
+      console.error(`[BaseController] Invalid status detected: ${status}. Defaulting to ${validStatus}. Message: ${message}`);
+    } else {
+      console.log(`[BaseController] Returning response with status: ${validStatus}`);
+    }
+
     return c.json(response, validStatus as any);
   }
 }
