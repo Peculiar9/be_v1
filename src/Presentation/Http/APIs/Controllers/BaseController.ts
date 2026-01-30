@@ -35,6 +35,8 @@ export class BaseController extends BaseMiddleware {
 
     // Hono status code must be a valid StatusCode type, so we might need casting or careful typing
     // specific status codes like 400, 401 etc are fine.
-    return c.json(response, status as any); // cast to any to avoid strict StatusCode type errors for dynamic status
+    // Ensure status is within valid range (100-599). If 0 or invalid, default to 500.
+    const validStatus = (status && status >= 100 && status < 600) ? status : 500;
+    return c.json(response, validStatus as any);
   }
 }
