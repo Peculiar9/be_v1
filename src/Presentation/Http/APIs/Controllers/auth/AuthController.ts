@@ -103,7 +103,7 @@ export class AuthController extends BaseController {
         }
     }
 
-    @httpPost("/logout", [AuthMiddleware.authenticate()])
+    @httpPost("/logout", [AuthMiddleware.initializeContext()])
     async logout(@ctx() c: Context) {
         try {
             const result = await this.authUseCase.logout();

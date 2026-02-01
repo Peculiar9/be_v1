@@ -79,15 +79,29 @@ export class UserProfileService extends BaseService implements IUserProfileServi
     }
 
     async getUserFromToken(userId: string): Promise<UserResponseDTO | undefined> {
+        let transactionSuccessfullyStarted = false;
         try {
+            transactionSuccessfullyStarted = await this.beginTransaction();
             // Find user by ID
             const user = await this.userRepository.findById(userId);
             if (!user) {
                 throw new ValidationError(ResponseMessage.USER_NOT_FOUND_MESSAGE);
             }
 
+            if (transactionSuccessfullyStarted) {
+                await this.commitTransaction();
+            }
+
             return this.authHelpers.constructUserObject(user);
         } catch (error: any) {
+            if (transactionSuccessfullyStarted) {
+                Console.error(error, {
+                    message: `Error getting user from token, rolling back transaction: ${error.message}`,
+                    level: LogLevel.ERROR
+                });
+                await this.rollbackTransaction();
+            }
+
             if (error instanceof AppError) {
                 throw error;
             }
@@ -175,42 +189,70 @@ export class UserProfileService extends BaseService implements IUserProfileServi
             throw new ValidationError("User could not be removed from the user records");
         }
     }
-    
+
     /**
      * Gets a user by ID
      * @param userId User ID
      * @returns User response DTO or undefined if not found
      */
     async getUserById(userId: string): Promise<UserResponseDTO | undefined> {
+        let transactionSuccessfullyStarted = false;
         try {
+            transactionSuccessfullyStarted = await this.beginTransaction();
             const user = await this.userRepository.findById(userId);
             if (!user) {
                 throw new ValidationError(ResponseMessage.USER_NOT_FOUND_MESSAGE);
             }
-            
+
+            if (transactionSuccessfullyStarted) {
+                await this.commitTransaction();
+            }
+
             return this.authHelpers.constructUserObject(user);
         } catch (error: any) {
+            if (transactionSuccessfullyStarted) {
+                Console.error(error, {
+                    message: `Error getting user by id, rolling back transaction: ${error.message}`,
+                    level: LogLevel.ERROR
+                });
+                await this.rollbackTransaction();
+            }
+
             if (error instanceof AppError) {
                 throw error;
             }
             throw new ValidationError(ResponseMessage.INTERNAL_SERVER_ERROR_MESSAGE);
         }
     }
-    
+
     /**
      * Gets a user by email
      * @param email User email
      * @returns User response DTO or undefined if not found
      */
     async getUserByEmail(email: string): Promise<UserResponseDTO | undefined> {
+        let transactionSuccessfullyStarted = false;
         try {
+            transactionSuccessfullyStarted = await this.beginTransaction();
             const user = await this.userRepository.findByEmail(email);
             if (!user) {
                 throw new ValidationError(ResponseMessage.USER_NOT_FOUND_MESSAGE);
             }
-            
+
+            if (transactionSuccessfullyStarted) {
+                await this.commitTransaction();
+            }
+
             return this.authHelpers.constructUserObject(user);
         } catch (error: any) {
+            if (transactionSuccessfullyStarted) {
+                Console.error(error, {
+                    message: `Error getting user by email, rolling back transaction: ${error.message}`,
+                    level: LogLevel.ERROR
+                });
+                await this.rollbackTransaction();
+            }
+
             if (error instanceof AppError) {
                 throw error;
             }
