@@ -5,6 +5,14 @@ import { AppError } from '@Core/Application/Error/AppError';
 
 @injectable()
 export class BaseController extends BaseMiddleware {
+  protected created(c: Context, data: any, message: string = 'Success') {
+    return c.json({
+      success: true,
+      message,
+      data
+    }, 201);
+  }
+
   protected success(c: Context, data: any, message: string = 'Success') {
     return c.json({
       success: true,
