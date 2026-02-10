@@ -146,20 +146,30 @@ export class TokenService implements ITokenService {
         try {
             const secret = process.env.JWT_ACCESS_SECRET;
 
-            const tokenParts = token.split('.');
-            if (tokenParts.length === 3) {
-                try {
-                    const header = JSON.parse(Buffer.from(tokenParts[0], 'base64url').toString());
-
-
-                    // Try to decode without verification to see payload
-                    const decodedPayload = jwt.decode(token);
-                } catch (e) {
-                    console.log("Could not parse token parts for debugging:", e);
-                }
-            } else {
-                console.log("Token does not have the expected format (header.payload.signature). Parts:", tokenParts.length);
-            }
+            // Debug token structure in non-production environments
+            // if (!EnvironmentConfig.isProduction()) {
+            //     const tokenParts = token.split('.');
+            //     if (tokenParts.length === 3) {
+            //         try {
+            //             const header = JSON.parse(Buffer.from(tokenParts[0], 'base64url').toString());
+            //             const decodedPayload = jwt.decode(token) as any;
+            //
+            //             if (decodedPayload) {
+            //                 console.log("[TokenService::verifyToken] Debug - Token structure:", {
+            //                     header,
+            //                     sub: decodedPayload.sub,
+            //                     type: decodedPayload.type,
+            //                     exp: decodedPayload.exp,
+            //                     expiresAt: decodedPayload.exp ? new Date(decodedPayload.exp * 1000).toISOString() : 'N/A'
+            //                 });
+            //             }
+            //         } catch (e) {
+            //             console.log("[TokenService::verifyToken] Could not parse token parts for debugging:", e);
+            //         }
+            //     } else {
+            //         console.log("[TokenService::verifyToken] Token does not have expected format. Parts:", tokenParts.length);
+            //     }
+            // }
 
             if (!secret) {
                 Console.error(new Error("JWT_ACCESS_SECRET not defined"), {
