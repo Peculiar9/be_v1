@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { secureHeaders } from "hono/secure-headers";
 import { Console } from "@Infrastructure/Utils/Console";
+import { EnvironmentConfig } from "@Infrastructure/Config/EnvironmentConfig";
 
 export function applyGlobalMiddleware(app: Hono) {
     // 1. Performance / Timing Middleware (Should be first to capture full duration)
@@ -27,20 +28,16 @@ export function applyGlobalMiddleware(app: Hono) {
     app.use('*', secureHeaders());
 }
 
-function corsOptions(): {
-    origin: string[];
-    allowMethods: string[];
-    allowHeaders: string[];
-    exposeHeaders: string[];
-    maxAge: number;
-    credentials: boolean;
-} {
+function corsOptions() {
+    const raw = EnvironmentConfig.get('CORS_ALLOWED_ORIGINS', '');
+    const allowedOrigins = raw ? raw.split(',').map(o => o.trim()).filter(Boolean) : [];
+    const hasSpecificOrigins = allowedOrigins.length > 0;
     return {
-        origin: ['*'],
+        origin: hasSpecificOrigins ? allowedOrigins : ['*'],
         allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
         allowHeaders: ['Content-Type', 'Authorization'],
         exposeHeaders: ['Content-Length'],
         maxAge: 60 * 60 * 24,
-        credentials: true,
+        credentials: hasSpecificOrigins,
     };
 }
