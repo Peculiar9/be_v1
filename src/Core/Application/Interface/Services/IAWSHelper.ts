@@ -4,8 +4,6 @@ import { BucketName } from "../../Enums/BucketName";
 import { ComparedFace } from "@aws-sdk/client-rekognition";
 import { PublishCommandOutput } from "@aws-sdk/client-sns";
 import { CompareFacesCommandOutput } from "@aws-sdk/client-rekognition";
-import { Express } from 'express';
-
 export interface IAWSHelper {
     sendVerificationEmail(to: string, data: EmailData): Promise<boolean>;
     sendWaitlistEmail(to: string, data: EmailData): Promise<boolean>;

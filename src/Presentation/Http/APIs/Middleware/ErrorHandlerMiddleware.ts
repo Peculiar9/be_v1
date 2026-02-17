@@ -1,4 +1,3 @@
-import { Request, Response, NextFunction } from 'express';
 import { injectable } from 'inversify';
 import { Console } from '@Infrastructure/Utils/Console';
 import { AppError, DatabaseError } from '@Core/Application/Error/AppError';
@@ -6,7 +5,7 @@ import * as Sentry from '@sentry/node';
 
 @injectable()
 export class ErrorHandlerMiddleware {
-    public static handleError(err: any, req: Request, res: Response, next: NextFunction) {
+    public static handleError(err: any, req: any, res: any, next: any) {
         // Determine status code
         const statusCode = err.statusCode || 500;
         
