@@ -44,6 +44,11 @@ import type { ITwilioEmailService } from '../Application/Interface/Services/ITwi
 import { TwilioEmailService } from '@Infrastructure/Services/TwilioEmailService';
 import type { IAccountUseCase } from '@Core/Application/Interface/UseCases/IAccountUseCase';
 import { AccountUseCase } from '@Core/Application/UseCases/AccountUseCase';
+import type { IPaymentService } from '../Application/Interface/Services/IPaymentService';
+import { StripePaymentService } from '@Infrastructure/Services/payment/StripePaymentService';
+import type { IStripeWebhookService } from '../Application/Interface/Services/IStripeWebhookService';
+import { StripeWebhookService } from '@Infrastructure/Services/payment/StripeWebhookService';
+import { PaymentTransactionRepository } from '@Infrastructure/Repository/SQL/auth/PaymentTransactionRepository';
 
 
 /**
@@ -157,6 +162,12 @@ export class DIContainer {
         container.bind<string>(TYPES.SENDGRID_API_KEY).toConstantValue(EnvironmentConfig.get('SENDGRID_API_KEY'));
         container.bind<string>(TYPES.SENDGRID_FROM_EMAIL).toConstantValue(EnvironmentConfig.get('SENDGRID_FROM_EMAIL', `noreply@${APP_NAME}.com`));
         container.bind<ITwilioEmailService>(TYPES.TwilioEmailService).to(TwilioEmailService).inSingletonScope();
+
+        // Payment
+        container.bind<string>(TYPES.STRIPE_SECRET_KEY).toConstantValue(EnvironmentConfig.get('STRIPE_SECRET_KEY'));
+        container.bind<PaymentTransactionRepository>(TYPES.PaymentTransactionRepository).to(PaymentTransactionRepository).inRequestScope();
+        container.bind<IPaymentService>(TYPES.PaymentService).to(StripePaymentService).inRequestScope();
+        container.bind<IStripeWebhookService>(TYPES.StripeWebhookService).to(StripeWebhookService).inRequestScope();
 
         console.log("All dependencies bound!!")
     }
