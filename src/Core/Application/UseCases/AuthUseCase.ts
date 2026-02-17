@@ -3,7 +3,7 @@ import { UserRegistrationDTO } from "../DTOs/AuthDTOV2";
 import { ChangePasswordDTO, ForgotPasswordDTO, IEmailVerificationResponse, LoginResponseDTO, RefreshTokenDTO, ResetPasswordDTO, VerifyEmailDTO } from "../DTOs/AuthDTO";
 import { LoginDTO } from "../DTOs/AuthDTO";
 import { TYPES } from "../../Types/Constants";
-import { inject } from "inversify";
+import { inject, injectable } from "inversify";
 import type { IRegistrationService } from "../Interface/Services/IRegistrationService";
 import { UserResponseDTO } from "../DTOs/UserDTO";
 import type { IUser } from "../Interface/Entities/auth-and-user/IUser";
@@ -16,6 +16,7 @@ import { UserStatus } from "../Enums/UserStatus";
 import { Console } from "console";
 import { UtilityService } from "@Core/Services/UtilityService";
 
+@injectable()
 export class AuthUseCase implements IAuthUseCase {
     constructor(
         @inject(TYPES.RegistrationService) private readonly _registrationService: IRegistrationService,
