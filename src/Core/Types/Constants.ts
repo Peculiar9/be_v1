@@ -4,7 +4,7 @@ export const TYPES = {
     ConnectionPoolManager: Symbol.for("ConnectionPoolManager"),
     UserRepository: Symbol.for('UserRepository'),
 
-    AccountUseCase: Symbol.for('AccountUseCae'),
+    AccountUseCase: Symbol.for('AccountUseCase'),
     AuthUseCase: Symbol.for('AuthUseCase'),
 
     AuthService: Symbol.for('AuthService'),
@@ -25,7 +25,7 @@ export const TYPES = {
     BaseService: Symbol.for('BaseService'),
     AuthHelpers: Symbol.for('AuthHelpers'),
     EmailService: Symbol.for('EmailService'),
-    DatabaseInitializer: Symbol.for('DatanaseInitializer'),
+    DatabaseInitializer: Symbol.for('DatabaseInitializer'),
 
     VerificationRepository: Symbol.for('VerificationRepository'),
     FileManagerRepository: Symbol.for('FileManagerRepository'),
@@ -76,6 +76,9 @@ export const TYPES = {
 
     // Services
     HttpClientFactory: Symbol.for('HttpClientFactory'),
+
+    // Repositories
+    PaymentTransactionRepository: Symbol.for('PaymentTransactionRepository'),
 
     // Webhooks
     StripeWebhookService: Symbol.for('StripeWebhookService'),
