@@ -12,7 +12,7 @@ export class BaseController extends BaseMiddleware {
       data
     }, 201);
   }
-
+ 
   protected success(c: Context, data: any, message: string = 'Success') {
     return c.json({
       success: true,

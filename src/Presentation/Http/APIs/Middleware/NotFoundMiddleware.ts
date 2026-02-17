@@ -1,10 +1,9 @@
-import { Request, Response, NextFunction } from 'express';
 import { injectable } from 'inversify';
 import { Console } from '@Infrastructure/Utils/Console';
 
 @injectable()
 export class NotFoundMiddleware {
-    public static handleNotFound(req: Request, res: Response, next: NextFunction) {
+    public static handleNotFound(req: any, res: any, next: any) {
         // Log the not found route for monitoring
         Console.warn(`Route not found: ${req.method} ${req.originalUrl}`, {
             method: req.method,

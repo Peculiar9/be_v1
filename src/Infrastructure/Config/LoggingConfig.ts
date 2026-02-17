@@ -1,5 +1,7 @@
 import * as Sentry from '@sentry/node';
-import { Application, RequestHandler, ErrorRequestHandler } from 'express';
+
+type RequestHandler = (req: any, res: any, next: () => void) => void;
+type ErrorRequestHandler = (error: any, req: any, res: any, next: () => void) => void;
 
 export class LoggingConfig {
     private static instance: LoggingConfig;
@@ -14,7 +16,7 @@ export class LoggingConfig {
         return LoggingConfig.instance;
     }
 
-    public initialize(app: Application): void {
+    public initialize(app?: any): void {
         if (this.initialized) {
             return;
         }
