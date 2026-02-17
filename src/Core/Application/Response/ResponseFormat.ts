@@ -50,16 +50,8 @@ export class ResponseMessage {
   static readonly EMAIL_VERIFICATION_FAILED = 'Email verification failed. Please try again.';
   static readonly RATE_LIMIT_ERROR = "Too many requests - try again later.";
   static readonly VERIFICATION_ALREADY_COMPLETED = 'Verification already completed';
-  static readonly BOOKMARK_SUCCESS = 'Successfully bookmarked station';
-  static readonly BOOKMARK_ALREADY_EXISTS = 'Station already bookmarked';
-  static readonly BOOKMARK_NOT_FOUND = 'Bookmark not found';
-  static readonly REVIEW_SUCCESS = 'Successfully reviewed station';
-  static readonly REVIEW_NOT_FOUND = 'Review not found';
-  static readonly REVIEW_ALREADY_EXISTS = 'Review already exists';
-  static readonly REVIEW_ALREADY_COMPLETED = 'Review already completed';
   static readonly PASSWORD_SETUP_SUCCESS = 'Password setup successful';
   static readonly USER_PASSWORD_SETUP_FAILED = 'User password setup failed';
-  static readonly CHECKIN_SUCCESS = 'Successfully checked in';
   static readonly USER_YOURE_TRYING_TO_VERIFY_DOES_NOT_EXIST = 'You are trying to verify a user that does not exist';
   static readonly SUCCESSFUL_REGISTRATION = 'User registration completed successfully';
   static readonly USER_PASSWORD_RESET_SUCCESS = 'User password reset successfully';
@@ -71,19 +63,8 @@ export class ResponseMessage {
   static readonly PASSWORD_RESET_REQUEST_FAILED = 'Password reset request failed';
   static readonly PROFILE_IMAGE_UPDATE_FAILED = 'Profile image update failed';
   static readonly INVALID_VERIFICATION_CODE = 'Invalid or expired verification code';
-  static readonly INVALID_VIN = 'Invalid VIN';
-  
-  
   // Additional error messages from controllers
-  static readonly REVIEW_UPDATED_SUCCESS = 'Review updated successfully';
-  static readonly REVIEW_DELETED_SUCCESS = 'Review deleted successfully';
   static readonly SERVICE_RUNNING = 'The service is running!!!';
-  static readonly BOOKMARK_REMOVED_SUCCESS = 'Bookmark removed successfully';
-  static readonly STATIONS_RETRIEVED_SUCCESS = 'Successfully retrieved charging stations';
-  static readonly STATION_RETRIEVED_SUCCESS = 'Successfully retrieved station';
-  static readonly BOOKMARKS_RETRIEVED_SUCCESS = 'Successfully retrieved bookmarked stations';
-  static readonly STATION_REVIEWS_RETRIEVED_SUCCESS = 'Successfully retrieved station reviews';
-  static readonly NREL_STATIONS_SYNCED = 'Successfully Synced NREL stations';
   
   // Method not implemented messages
   static readonly METHOD_NOT_IMPLEMENTED = 'Method not implemented';
@@ -101,10 +82,6 @@ export class ResponseMessage {
   // Authentication related messages
   static readonly VERIFICATION_RESTART_ERROR = 'An unexpected error occurred while restarting verification. Please try again later.';
   
-  // Station related messages
-  static readonly STATION_WITH_ID_NOT_FOUND = 'Station with ID {0} not found';
-  static readonly USER_NOT_AUTHORIZED_TO_UPDATE_REVIEW = 'User not authorized to update this review';
-  static readonly REVIEW_WITH_ID_NOT_FOUND = 'Review with ID {0} not found';
   // Payment related messages
   static readonly PAYMENT_METHOD_ADDED_SUCCESS = 'Payment method added successfully';
   static readonly PAYMENT_METHOD_REMOVED_SUCCESS = 'Payment method removed successfully';
