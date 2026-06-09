@@ -1,5 +1,6 @@
 import { UserResponseDTO, UpdateUserDTO } from '../../DTOs/UserDTO';
 import type { IUser } from '../Entities/auth-and-user/IUser';
+import type { UploadedFile } from '../../Types/UploadedFile';
 
 /**
  * Interface for user profile-related operations
@@ -28,7 +29,7 @@ export interface IUserProfileService {
      * @param user User object
      * @returns Updated user data
      */
-    updateProfileImage(image: Express.Multer.File, user: IUser): Promise<UserResponseDTO>;
+    updateProfileImage(image: UploadedFile, user: IUser): Promise<UserResponseDTO>;
     
     /**
      * Removes a user

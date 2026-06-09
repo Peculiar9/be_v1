@@ -20,7 +20,6 @@ export class EnvironmentConfig {
 
         // Load env files first
         const nodeEnv = process.env.NODE_ENV || 'test';
-        console.log("nodeEnv from EnvironmentConfig: ", nodeEnv);
         if (nodeEnv === 'production') {
             this.loadEnvFile('.env.production');
         } else {
@@ -31,20 +30,14 @@ export class EnvironmentConfig {
             for (const envFile of envFilesToTry) {
                 if (this.loadEnvFile(envFile)) {
                     loaded = true;
-                    console.log(`[Environment] Loaded configuration from ${envFile}`);
                     break;
                 }
             }
 
             if (!loaded) {
-                console.warn('[Environment] No environment file found. Using system environment variables.');
+                return;
             }
         }
-
-        // Log after loading env files
-        console.log("EnvironmentConfig.initialize() called: ", process.env.NODE_ENV);
-        const finalNodeEnv = this.get('NODE_ENV', 'test');
-        console.log("nodeEnv from EnvironmentConfig final: ", finalNodeEnv);
     }
 
     private static loadEnvFile(filename: string): boolean {
@@ -55,7 +48,6 @@ export class EnvironmentConfig {
                 const result = dotenv.config({ path: envPath });
 
                 if (result.error) {
-                    console.error(`[Environment] Error loading ${filename}:`, result.error);
                     return false;
                 }
 
@@ -63,58 +55,17 @@ export class EnvironmentConfig {
                 this.validateRequiredVariables();
                 return true;
             }
-        } catch (error) {
-            console.error(`[Environment] Error checking/loading ${filename}:`, error);
+        } catch {
+            return false;
         }
 
         return false;
     }
 
-    private static validateRequiredVariables(): void {
-        const requiredVariables = [
-            'DB_HOST',
-            'DB_PORT',
-            'DB_NAME',
-            'DB_USER',
-            'DB_PASSWORD',
-            'JWT_ACCESS_SECRET',
-            'AWS_REGION',
-
-            // Google
-            'GOOGLE_CLIENT_ID',
-            'GOOGLE_CLIENT_SECRET',
-            'GOOGLE_REDIRECT_URI',
-
-            // Cloudinary
-            'CLOUDINARY_CLOUD_NAME',
-            'CLOUDINARY_API_KEY',
-            'CLOUDINARY_API_SECRET',
-
-            // Twilio
-            'TWILIO_ACCOUNT_SID',
-            'TWILIO_AUTH_TOKEN',
-            'TWILIO_VERIFY_SERVICE_SID',
-            'TWILIO_PHONE_NUMBER',
-            'TWILIO_WHATSAPP_NUMBER',
-
-            // SendGrid
-            'SENDGRID_API_KEY',
-            'SENDGRID_FROM_EMAIL'
-        ];
-
-        const missingVariables = requiredVariables.filter(variable => !process.env[variable]);
-
-        if (missingVariables.length > 0) {
-            console.warn('[Environment] Missing required environment variables:', missingVariables);
-        }
-    }
+    private static validateRequiredVariables(): void {}
 
     static get(key: string, defaultValue?: string): string {
         const value = process.env[key];
-
-        if (value === undefined && defaultValue === undefined) {
-            console.warn(`[Environment] Environment variable ${key} is not set and no default value provided`);
-        }
 
         return value || defaultValue || '';
     }
@@ -127,7 +78,6 @@ export class EnvironmentConfig {
 
         const numValue = parseInt(value, 10);
         if (isNaN(numValue)) {
-            console.warn(`[Environment] Environment variable ${key} is not a valid number, using default:`, defaultValue);
             return defaultValue;
         }
 
@@ -142,7 +92,6 @@ export class EnvironmentConfig {
         }
 
         if (value !== 'true' && value !== 'false') {
-            console.warn(`[Environment] Environment variable ${key} is not a valid boolean, using default:`, defaultValue);
             return defaultValue;
         }
 

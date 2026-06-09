@@ -1,6 +1,5 @@
-import { inject, injectable } from "inversify";
-import { TransactionManager } from "../../Repository/SQL/Abstractions/TransactionManager";
-import { DatabaseIsolationLevel } from "@Core/Application/Enums/DatabaseIsolationLevel";
+import { injectable } from "inversify";
+import { DatabaseIsolationLevel, TransactionManager } from "peculiar-orm";
 import { Console, LogLevel } from "../../Utils/Console";
 
 /**
@@ -78,5 +77,41 @@ export abstract class BaseService {
      */
     protected isTransactionActive(): boolean {
         return this.transactionManager.isActive();
+    }
+
+    /**
+     * Runs an operation inside a transaction.
+     * If an outer service already opened a transaction, the operation joins it
+     * and leaves commit/rollback ownership to the outer service.
+     */
+    protected async withTransaction<T>(
+        operation: () => Promise<T>,
+        isolationLevel: DatabaseIsolationLevel = DatabaseIsolationLevel.READ_COMMITTED,
+        readOnlyFlag: boolean = false
+    ): Promise<T> {
+        if (this.isTransactionActive()) {
+            return operation();
+        }
+
+        let transactionStarted = false;
+        try {
+            transactionStarted = await this.beginTransaction(isolationLevel, readOnlyFlag);
+            if (!transactionStarted) {
+                throw new Error("Failed to begin transaction");
+            }
+
+            const result = await operation();
+            const transactionCommitted = await this.commitTransaction();
+            if (!transactionCommitted) {
+                throw new Error("Failed to commit transaction");
+            }
+
+            return result;
+        } catch (error) {
+            if (transactionStarted && this.isTransactionActive()) {
+                await this.rollbackTransaction();
+            }
+            throw error;
+        }
     }
 }

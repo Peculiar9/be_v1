@@ -1,6 +1,5 @@
 import { APP_NAME, TYPES } from "@Core/Types/Constants";
-import crypto from 'crypto';
-import { TransactionManager } from "../Repository/SQL/Abstractions/TransactionManager";
+import { TransactionManager } from "peculiar-orm";
 import type { IEmailService } from "@Core/Application/Interface/Services/IEmailService";
 import type { IAWSHelper } from "@Core/Application/Interface/Services/IAWSHelper";
 import { inject, injectable } from "inversify";
@@ -8,15 +7,25 @@ import { EmailOTPDTO, EmailVerificationResponse } from "@Core/Application/DTOs/E
 import { VerificationType } from "@Core/Application/Interface/Entities/auth-and-user/IVerification";
 import { VerificationRepository } from "../Repository/SQL/auth/VerificationRepository";
 import { UtilityService } from "@Core/Services/UtilityService";
-import { ValidationError } from "@Core/Application/Error/AppError";
+import { AppError, ServiceError, ValidationError } from "@Core/Application/Error/AppError";
+import type { EmailData } from "./data/EmailData";
+import { BaseService } from "./base/BaseService";
+
+type EmailOtpVerificationOutcome = {
+    response: EmailVerificationResponse;
+} | {
+    error: ValidationError;
+};
 
 @injectable()
-export class EmailService implements IEmailService {
+export class EmailService extends BaseService implements IEmailService {
     constructor(
         @inject(TYPES.AWSHelper) private readonly _awsHelper: IAWSHelper,
         @inject(TYPES.VerificationRepository) private readonly verificationRepository: VerificationRepository,
-        @inject(TYPES.TransactionManager) private readonly transactionManager: TransactionManager
-    ) { }
+        @inject(TYPES.TransactionManager) protected readonly transactionManager: TransactionManager
+    ) {
+        super(transactionManager);
+    }
 
     async sendOTPEmail(data: EmailOTPDTO): Promise<EmailVerificationResponse> {
         try {
@@ -51,16 +60,14 @@ export class EmailService implements IEmailService {
                 code: otp // Return the OTP code so caller can store it
             };
         } catch (error: any) {
-            console.error('EmailService::sendOTPEmail -> Failed', {
-                error: error.message,
-                email: data.email
-            });
-            throw new Error(error.message);
+            if (error instanceof AppError) {
+                throw error;
+            }
+            throw new ServiceError(error.message);
         }
     }
 
     async sendPasswordResetOTPEmail(data: EmailOTPDTO): Promise<EmailVerificationResponse> {
-        const transactionStarted = false;
         try {
             if (!UtilityService.isValidEmail(data.email)) {
                 throw new ValidationError('Invalid email format');
@@ -71,19 +78,21 @@ export class EmailService implements IEmailService {
 
             const reference = UtilityService.generateUUID();
 
-            const verification = await this.verificationRepository.create({
-                identifier: data.email,
-                type: VerificationType.EMAIL,
-                otp: {
-                    code: await UtilityService.hashOTP(otp),
-                    attempts: 0,
+            const verification = await this.withTransaction(async () => {
+                return await this.verificationRepository.create({
+                    identifier: data.email,
+                    type: VerificationType.EMAIL,
+                    otp: {
+                        code: await UtilityService.hashOTP(otp),
+                        attempts: 0,
+                        expiry: UtilityService.dateToUnix(expiry),
+                        last_attempt: null,
+                        verified: false
+                    },
+                    user_id: data.userId,
                     expiry: UtilityService.dateToUnix(expiry),
-                    last_attempt: null,
-                    verified: false
-                },
-                user_id: data.userId,
-                expiry: UtilityService.dateToUnix(expiry),
-                reference
+                    reference
+                });
             });
 
             const userName = data.firstName || data.email.split('@')[0];
@@ -106,107 +115,141 @@ export class EmailService implements IEmailService {
                 remainingAttempts: 3
             };
         } catch (error: any) {
-            throw new Error(error.message);
+            if (error instanceof AppError) {
+                throw error;
+            }
+            throw new ServiceError(error.message);
         }
     }
 
     async resendOTPEmail(email: string, reference: string): Promise<EmailVerificationResponse> {
         try {
-            const verification = await this.verificationRepository.findByReference(reference);
-            if (!verification || verification.identifier !== email) {
-                throw new ValidationError('Invalid verification reference');
-            }
-
-            if (verification.otp?.last_attempt) {
-                const timeSinceLastAttempt = Date.now() - verification.otp.last_attempt;
-                if (timeSinceLastAttempt < 60000) { // 1 minute
-                    throw new ValidationError('Please wait before requesting another OTP');
+            const resendData = await this.withTransaction(async () => {
+                const verification = await this.verificationRepository.findByReference(reference);
+                if (!verification || verification.identifier !== email) {
+                    throw new ValidationError('Invalid verification reference');
                 }
-            }
 
-            const otp = UtilityService.generateOTP();
-            const expiry = Date.now() + (15 * 60 * 1000);
+                if (verification.otp?.last_attempt) {
+                    const lastAttempt = verification.otp.last_attempt;
+                    const lastAttemptMillis = lastAttempt > 9999999999 ? lastAttempt : lastAttempt * 1000;
+                    const timeSinceLastAttempt = Date.now() - lastAttemptMillis;
+                    if (timeSinceLastAttempt < 60000) {
+                        throw new ValidationError('Please wait before requesting another OTP');
+                    }
+                }
 
-            await this.verificationRepository.update(verification._id!, {
-                otp: {
-                    code: await UtilityService.hashOTP(otp),
-                    attempts: 0,
-                    expiry,
-                    last_attempt: Date.now(),
-                    verified: false
-                },
-                expiry
+                const otp = UtilityService.generateOTP();
+                const expiry = Date.now() + (15 * 60 * 1000);
+                const expiryUnix = UtilityService.dateToUnix(expiry);
+                const currentTime = UtilityService.dateToUnix(new Date());
+
+                await this.verificationRepository.update(verification._id!, {
+                    otp: {
+                        code: await UtilityService.hashOTP(otp),
+                        attempts: 0,
+                        expiry: expiryUnix,
+                        last_attempt: currentTime,
+                        verified: false
+                    },
+                    expiry: expiryUnix
+                });
+
+                return { verification, otp, expiry };
             });
 
             await this._awsHelper.sendOTPEmail(email, {
                 recipient: email,
                 email,
-                otpCode: otp,
+                otpCode: resendData.otp,
                 otpExpiry: 15
             });
 
             return {
                 success: true,
                 message: 'OTP resent successfully',
-                reference: verification.reference,
-                expiry,
+                reference: resendData.verification.reference,
+                expiry: resendData.expiry,
                 remainingAttempts: 3
             };
         } catch (error: any) {
-            throw new Error(error.message);
+            if (error instanceof AppError) {
+                throw error;
+            }
+            throw new ServiceError(error.message);
         }
     }
 
     async verifyOTPEmail(email: string, otp: string, reference: string): Promise<EmailVerificationResponse> {
         try {
-            const verification = await this.verificationRepository.findByReference(reference);
-            if (!verification || verification.identifier !== email) {
-                throw new ValidationError('Invalid verification reference');
-            }
-
-            if (verification.expiry! < Date.now()) {
-                throw new ValidationError('OTP has expired');
-            }
-
-            if (verification.otp!.attempts >= 3) {
-                throw new ValidationError('Maximum attempts exceeded');
-            }
-
-            const isValid = await UtilityService.verifyOTP(otp, verification.otp!.code);
-
-            const attempts = verification.otp!.attempts + 1;
-            await this.verificationRepository.update(verification._id!, {
-                otp: {
-                    ...verification.otp!,
-                    attempts,
-                    last_attempt: Date.now(),
-                    verified: isValid
+            const result = await this.withTransaction(async (): Promise<EmailOtpVerificationOutcome> => {
+                const verification = await this.verificationRepository.findByReference(reference);
+                if (!verification || verification.identifier !== email) {
+                    throw new ValidationError('Invalid verification reference');
                 }
+
+                const currentTime = UtilityService.dateToUnix(new Date());
+                if (!verification.expiry || verification.expiry < currentTime) {
+                    return { error: new ValidationError('OTP has expired') };
+                }
+
+                if (!verification.otp) {
+                    return { error: new ValidationError('Invalid verification reference') };
+                }
+
+                if (verification.otp.attempts >= 3) {
+                    return { error: new ValidationError('Maximum attempts exceeded') };
+                }
+
+                const isValid = await UtilityService.verifyOTP(otp, verification.otp.code);
+                const attempts = verification.otp.attempts + 1;
+
+                await this.verificationRepository.update(verification._id!, {
+                    otp: {
+                        ...verification.otp,
+                        attempts,
+                        last_attempt: currentTime,
+                        verified: isValid
+                    }
+                });
+
+                if (!isValid) {
+                    return { error: new ValidationError('Invalid OTP') };
+                }
+
+                return {
+                    response: {
+                        success: true,
+                        message: 'OTP verified successfully',
+                        reference: verification.reference
+                    }
+                };
             });
 
-            if (!isValid) {
-                throw new ValidationError('Invalid OTP');
+            if ('error' in result) {
+                throw result.error;
             }
 
-            return {
-                success: true,
-                message: 'OTP verified successfully',
-                reference: verification.reference
-            };
+            return result.response;
         } catch (error: any) {
-            throw new Error(error.message);
+            if (error instanceof AppError) {
+                throw error;
+            }
+            throw new ServiceError(error.message);
         }
     }
-    async sendVerificationEmail(data: any, userSalt: string, next: string): Promise<any> {
+    async sendVerificationEmail(data: EmailData, userSalt: string, next: string): Promise<boolean> {
+        void userSalt;
+        void next;
         try {
-            const emailResult = await this._awsHelper.sendVerificationEmail(data.email, data);
+            const emailResult = await this._awsHelper.sendVerificationEmail(data.email ?? data.recipient, data);
             return emailResult;
         } catch (error: any) {
-            throw new Error(error.message);
+            throw new ServiceError(error.message);
         }
     }
 
-    async sendPasswordResetEmail(data: EmailOTPDTO): Promise<any> {
+    async sendPasswordResetEmail(data: EmailOTPDTO): Promise<boolean> {
         try {
             const emailData = {
                 recipient: data.email,
@@ -219,25 +262,25 @@ export class EmailService implements IEmailService {
             const emailResult = await this._awsHelper.sendForgotPasswordEmail(data.email, emailData);
             return emailResult;
         } catch (error: any) {
-            throw new Error(error.message);
+            throw new ServiceError(error.message);
         }
     }
 
-    async sendWelcomeEmail(data: any): Promise<any> {
+    async sendWelcomeEmail(data: EmailData): Promise<boolean> {
         try {
-            const emailResult = await this._awsHelper.sendWaitlistEmail(data.email, data);
+            const emailResult = await this._awsHelper.sendWaitlistEmail(data.email ?? data.recipient, data);
             return emailResult;
         } catch (error: any) {
-            throw new Error(error.message);
+            throw new ServiceError(error.message);
         }
     }
 
-    async sendProfileUpdateEmail(data: any): Promise<any> {
+    async sendProfileUpdateEmail(data: EmailData): Promise<boolean> {
         try {
-            const emailResult = await this._awsHelper.sendProfileUpdateEmail(data.email, data);
+            const emailResult = await this._awsHelper.sendProfileUpdateEmail(data.email ?? data.recipient, data);
             return emailResult;
         } catch (error: any) {
-            throw new Error(error.message);
+            throw new ServiceError(error.message);
         }
     }
 }

@@ -7,7 +7,6 @@ export const TYPES = {
     AccountUseCase: Symbol.for('AccountUseCase'),
     AuthUseCase: Symbol.for('AuthUseCase'),
 
-    AuthService: Symbol.for('AuthService'),
     AuthenticationService: Symbol.for('AuthenticationService'),
     RegistrationService: Symbol.for('RegistrationService'),
     UserProfileService: Symbol.for('UserProfileService'),
@@ -20,7 +19,6 @@ export const TYPES = {
     FileService: Symbol.for('FileService'),
 
     AWSHelper: Symbol.for('AWSHelper'),
-    AuthServiceHelper: Symbol.for('AuthServiceHelper'),
     TokenService: Symbol.for('TokenService'),
     BaseService: Symbol.for('BaseService'),
     AuthHelpers: Symbol.for('AuthHelpers'),
@@ -32,19 +30,16 @@ export const TYPES = {
     LinkedAccountsRepository: Symbol.for('LinkedAccountsRepository'),
     UserKYCRepository: Symbol.for('UserKYCRepository'),
 
-    PaymentController: Symbol.for('PaymentController'),
-    StripeWebhookController: Symbol.for('StripeWebhookController'),
-
     GOOGLE_CLIENT_ID: Symbol.for('GoogleClientId'),
     GOOGLE_CLIENT_SECRET: Symbol.for('GoogleClientSecret'),
     GOOGLE_REDIRECT_URI: Symbol.for('GoogleRedirectUri'),
 
     CryptoService: Symbol.for('CryptoService'),
 
-    // Payment Service
-    PaymentService: Symbol.for('PaymentService'),
-    STRIPE_SECRET_KEY: Symbol.for('STRIPE_SECRET_KEY'),
-    STRIPE_PRE_AUTH_AMOUNT: Symbol.for('STRIPE_PRE_AUTH_AMOUNT'),
+    // Payment provider ports. Bind concrete adapters in project-specific code.
+    PaymentGateway: Symbol.for('PaymentGateway'),
+    PaymentWebhookVerifier: Symbol.for('PaymentWebhookVerifier'),
+    PAYMENT_PROVIDER: Symbol.for('PAYMENT_PROVIDER'),
 
     // Verification and Credentials Repositories
     CertificateRepository: Symbol.for('CertificateRepository'),
@@ -80,19 +75,12 @@ export const TYPES = {
     // Repositories
     PaymentTransactionRepository: Symbol.for('PaymentTransactionRepository'),
 
-    // Webhooks
-    StripeWebhookService: Symbol.for('StripeWebhookService'),
-
     // File
     FileUseCase: Symbol.for('FileUseCase'),
 
     // Repositories
     NewsletterSubscriptionRepository: Symbol.for('NewsletterSubscriptionRepository'),
 
-
-    // KYC
-    QuickVerifyService: Symbol.for('QuickVerifyService'),
-    VerifyMeService: Symbol.for('VerifyMeService'),
 } as const;
 
 export const APP_VERSION = 'v1';

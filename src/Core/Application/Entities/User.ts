@@ -102,7 +102,7 @@ export class User implements IUser {
     public host_badges: string;
 
     @Column('VARCHAR(255) DEFAULT NULL')
-    public stripe_id: string;
+    public payment_customer_id: string;
 
     @Column('JSONB DEFAULT NULL')
     public billing_info: IBillingInfo;
@@ -179,105 +179,79 @@ export class User implements IUser {
 
 
     static async createFromDTO(dto: CreateUserDTO): Promise<User | undefined> {
-        try {
-            let email;
+        let email;
 
-            if (dto.email === '') {
-                email = null;
-            } else {
-                email = dto.email.toLowerCase();
-            }
-
-            console.log("Email: ", { email });
-            const user_secret = UtilityService.generateUserSecret();
-            const userData: Partial<IUser> = {
-                // _id: UtilityService.generateUUID(),
-                first_name: dto.first_name,
-                last_name: dto.last_name,
-                email,
-                password: dto.password,
-                user_secret,
-                profile_image: dto.profile_image || '',
-                // status: UserStatus.INACTIVE,
-                is_active: true,
-                refresh_token: '',  // Initialize with empty string
-                roles: dto.roles,
-            };
-
-            const user = new User(userData);
-            await user.validate();
-            return user;
-        } catch (error: any) {
-            console.error('User Object creation: ', {
-                message: error.message,
-                stack: error.stack
-            });
-            throw error;
+        if (dto.email === '') {
+            email = null;
+        } else {
+            email = dto.email.toLowerCase();
         }
+
+        const user_secret = UtilityService.generateUserSecret();
+        const userData: Partial<IUser> = {
+            // _id: UtilityService.generateUUID(),
+            first_name: dto.first_name,
+            last_name: dto.last_name,
+            email,
+            password: dto.password,
+            user_secret,
+            profile_image: dto.profile_image || '',
+            // status: UserStatus.INACTIVE,
+            is_active: true,
+            refresh_token: '',  // Initialize with empty string
+            roles: dto.roles,
+        };
+
+        const user = new User(userData);
+        await user.validate();
+        return user;
     }
     static async createFromRegisterUserDTO(dto: UserRegistrationDTO): Promise<User | undefined> {
-        try {
-            let email;
+        let email;
 
-            if (dto.email === '') {
-                email = null;
-            } else {
-                email = dto.email.toLowerCase();
-            }
-
-            const first_name = dto.full_name.split(" ")[0];
-            const last_name = dto.full_name.split(" ")[1];
-            const salt = CryptoService.generateValidSalt();
-
-            console.log("Email: ", { email });
-            const user_secret = UtilityService.generateUserSecret();
-            const password = CryptoService.hashString(dto.password, salt);
-            const userData: Partial<IUser> = {
-                // _id: UtilityService.generateUUID(),
-                first_name,
-                last_name,
-                email,
-                password,
-                user_secret,
-                salt,
-                status: UserStatus.INACTIVE,
-                is_active: true,
-                auth_method: AuthMethod.PASSWORD,
-                refresh_token: '',  // Initialize with empty string
-                roles: [dto.role],
-            };
-
-            const user = new User(userData);
-            await user.validate();
-            return user;
-        } catch (error: any) {
-            console.error('User Object creation: ', {
-                message: error.message,
-                stack: error.stack
-            });
-            throw error;
+        if (dto.email === '') {
+            email = null;
+        } else {
+            email = dto.email.toLowerCase();
         }
+
+        const first_name = dto.full_name.split(" ")[0];
+        const last_name = dto.full_name.split(" ")[1];
+        const salt = CryptoService.generateValidSalt();
+
+        const user_secret = UtilityService.generateUserSecret();
+        const password = CryptoService.hashString(dto.password, salt);
+        const userData: Partial<IUser> = {
+            // _id: UtilityService.generateUUID(),
+            first_name,
+            last_name,
+            email,
+            password,
+            user_secret,
+            salt,
+            status: UserStatus.INACTIVE,
+            is_active: true,
+            auth_method: AuthMethod.PASSWORD,
+            refresh_token: '',  // Initialize with empty string
+            roles: [dto.role],
+        };
+
+        const user = new User(userData);
+        await user.validate();
+        return user;
     }
 
     static async updateFromDTO(existingUser: IUser, dto: UpdateUserDTO): Promise<Partial<IUser>> {
-        try {
-            // Only include fields that are actually being updated
-            const userData: Partial<IUser> = {
-                _id: existingUser._id, // Keep the ID for reference
-                status: UserStatus.ACTIVE,
-                ...dto,
-            };
+        // Only include fields that are actually being updated
+        const userData: Partial<IUser> = {
+            _id: existingUser._id, // Keep the ID for reference
+            status: UserStatus.ACTIVE,
+            ...dto,
+        };
 
-            const user = new User(userData);
-            await user.validateForUpdate();
-            return userData;
-        } catch (error: any) {
-            console.error('User Object update: ', {
-                message: error.message,
-                stack: error.stack
-            });
-            throw error;
-        }
+        const user = new User(userData);
+        await user.validateForUpdate();
+        return userData;
     }
 
     private async validate(): Promise<void> {
@@ -336,7 +310,7 @@ export class User implements IUser {
         const validRoles = Object.values(UserRole);
         const invalidRoles = roles?.filter(role => !validRoles.includes(role as UserRole));
         if (invalidRoles?.length as number > 0) {
-            throw new ValidationError(`Invalid roles: ${(invalidRoles as any).join(', ')}`);
+            throw new ValidationError(`Invalid roles: ${invalidRoles?.join(', ')}`);
         }
     }
 
@@ -368,7 +342,10 @@ export class User implements IUser {
     }
 
     public toJSON(): Omit<IUser, 'password' | 'salt' | 'user_secret'> {
-        const { password, salt, user_secret, ...rest } = this;
-        return rest;
+        const json = { ...this } as Partial<IUser>;
+        delete json.password;
+        delete json.salt;
+        delete json.user_secret;
+        return json as Omit<IUser, 'password' | 'salt' | 'user_secret'>;
     }
 }

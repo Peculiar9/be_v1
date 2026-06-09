@@ -11,7 +11,7 @@ export interface SendEmailOptions {
     to: string;
     subject: string;
     templateId?: string;
-    dynamicTemplateData?: Record<string, any>;
+    dynamicTemplateData?: Record<string, unknown>;
     htmlContent?: string;
     textContent?: string;
 }

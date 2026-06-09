@@ -12,11 +12,12 @@ import { RekognitionClient } from "@aws-sdk/client-rekognition";
 import { injectable, inject } from "inversify";
 import { AWSFileFormatterHelper } from "./AWSFileFormatterHelper";
 import { TYPES } from "@Core/Types/Constants";
-import { ValidationError } from "@Core/Application/Error/AppError";
+import { ServiceError, ValidationError } from "@Core/Application/Error/AppError";
 import { UtilityService } from "@Core/Services/UtilityService";
 import { FileService } from "../FileService";
 import { SESClient, SendEmailCommand } from '@aws-sdk/client-ses';
 import { EnvironmentConfig } from '../../Config/EnvironmentConfig';
+import { Console, LogLevel } from "../../Utils/Console";
 
 
 @injectable()
@@ -72,11 +73,11 @@ export class AWSBaseServices {
         });
     }
 
-    private logOperation(operation: string, details: any) {
-        console.log(`[AWS Operation] ${operation}:`, JSON.stringify({
+    private logOperation(operation: string, details: Record<string, unknown>) {
+        Console.write(`[AWS Operation] ${operation}`, LogLevel.INFO, {
             timestamp: new Date().toISOString(),
             ...details
-        }, null, 2));
+        });
     }
 
     @inject(TYPES.AWSFileFormatterHelper) private fileFormatter!: AWSFileFormatterHelper;
@@ -93,11 +94,9 @@ export class AWSBaseServices {
                 data += chunk;
             });
             stream.on('end', () => {
-                // console.log('AWSHelper::parseEmailTemplate response => ', data);
                 resolve(data);
             });
             stream.on('error', (error) => {
-                console.log('AWSHelper::parseEmailTemplate error => ', error.message);
                 reject(error);
             });
         });
@@ -113,15 +112,13 @@ export class AWSBaseServices {
                 ContentType: response.ContentType
             };
         } catch (error: any) {
-            console.log('AWSHelper::getFile() => error => ', error.message);
-            throw error;
+            throw new ServiceError(`Failed to fetch file from S3: ${error.message}`);
         }
     }
 
     protected async getEmailTemplate(emailType: string, data: EmailData): Promise<string> {
         try {
             const bucketName = BucketName.EMAIL_TEMPLATE_S3_BUCKET;
-            console.log("GetEmail Template => : BucketName: ", bucketName);
             const templateMap: Record<string, string> = {
                 [EmailType.VERIFICATION]: `${emailType}-email.html`,
                 [EmailType.SUBSCRIPTION]: `${emailType}-email.html`,
@@ -132,15 +129,11 @@ export class AWSBaseServices {
             };
 
             const key = templateMap[emailType];
-            console.log("GetEmail Template => : Key: ", key);
             if (!key) {
-                throw new Error(`Invalid email type: ${emailType}`);
+                throw new ValidationError(`Invalid email type: ${emailType}`);
             }
 
-            // Log bucket name and template key for debugging
-        console.log('[EMAIL TEMPLATE FETCH] S3 Bucket:', bucketName);
-        console.log('[EMAIL TEMPLATE FETCH] Template Key:', key);
-        const template = await this.getEmailFile(bucketName, key, data);
+            const template = await this.getEmailFile(bucketName, key, data);
             
             this.logOperation('Email Template Fetch Completed', {
                 emailType,
@@ -155,7 +148,7 @@ export class AWSBaseServices {
                 error: error.message,
                 stack: error.stack
             });
-            throw error;
+            throw new ServiceError(`Failed to fetch email template: ${error.message}`);
         }
     }
 
@@ -169,18 +162,12 @@ export class AWSBaseServices {
         if (emailType === EmailType.SUBSCRIPTION) {
             return EmailHeaderData.SUBSCRIPTION;
         }
-        if (emailType === EmailType.FORGOT_PASSWORD) {
-
-        }
-        //TODO: For Order confirmation and password reset e.t.c
+        return undefined;
     }
 
 
     protected async getEmailFile(bucketName: string, key: string, data: EmailData): Promise<string> {
         try {
-            // Log again here for deeper visibility
-            console.log('[EMAIL TEMPLATE S3 FETCH] S3 Bucket:', bucketName);
-            console.log('[EMAIL TEMPLATE S3 FETCH] Template Key:', key);
             const command = new GetObjectCommand({
                 Bucket: bucketName,
                 Key: key
@@ -191,13 +178,12 @@ export class AWSBaseServices {
             // Convert stream to string
             const streamToString = (stream: NodeJS.ReadableStream): Promise<string> =>
                 new Promise((resolve, reject) => {
-                    const chunks: any[] = [];
+                    const chunks: Buffer[] = [];
                     stream.on('data', (chunk) => chunks.push(chunk));
                     stream.on('error', reject);
                     stream.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
                 });
-            
-            console.log('[EMAIL TEMPLATE S3 FETCH] Response ContentType:', response.ContentType)
+
             let template = '';
             if (response.Body) {
                 template = await streamToString(response.Body as NodeJS.ReadableStream);
@@ -205,11 +191,9 @@ export class AWSBaseServices {
 
             // Format template with variables using the formatter helper
             template = this.fileFormatter.formatTemplate(template, this.fileFormatter.createEmailVariables(data));
-            console.log('[EMAIL TEMPLATE S3 FETCH] Response template:', template);
             return template;
         } catch (error: any) {
-            console.error('Error getting email template:', error);
-            throw new Error(`Failed to get email template: ${error.message}`);
+            throw new ServiceError(`Failed to get email template: ${error.message}`);
         }
     }
     protected async uploadFile({
@@ -220,21 +204,14 @@ export class AWSBaseServices {
         contentType,
     }: FileUploadOptions): Promise<void> {
         try {
-
-            console.log("AWSBaseServices::uploadFile() => ", {
-                bucketName,
-                directoryPath,
-                fileName,
-                contentType
-            });
-
             this.logOperation('S3 Upload Started', {
                 bucket: bucketName,
                 fileName,
                 contentType
             });
 
-            const fileKey = fileName;
+            const normalizedDirectory = directoryPath ? directoryPath.replace(/^\/+/, '').replace(/\/?$/, '/') : '';
+            const fileKey = `${normalizedDirectory}${fileName}`;
             const command = new PutObjectCommand({
                 Bucket: bucketName,
                 Key: fileKey,
@@ -243,12 +220,10 @@ export class AWSBaseServices {
             });
 
             const response = await this.s3KYCClient.send(command);
-            const fileUrl = `https://${bucketName}.s3.amazonaws.com/${fileKey}`;
             
             this.logOperation('S3 Upload Completed', {
                 bucket: bucketName,
                 fileName,
-                fileUrl,
                 response: {
                     requestId: response.$metadata.requestId,
                     httpStatusCode: response.$metadata.httpStatusCode
@@ -261,7 +236,7 @@ export class AWSBaseServices {
                 error: error.message,
                 stack: error.stack
             });
-            throw error;
+            throw new ServiceError(`Failed to upload to S3: ${error.message}`);
         }
     };
 
@@ -275,11 +250,9 @@ export class AWSBaseServices {
             Key: fileName,
           });
     
-          const response = await this.s3KYCClient.send(command);
-          console.log("File removed successfully:", response);
+          await this.s3KYCClient.send(command);
         } catch (error: any) {
-          console.error("AWSHelper::removeFile() => error => ", error.message);
-          throw error;
+          throw new ServiceError(`Failed to remove file from S3: ${error.message}`);
         }
       }
 
@@ -371,8 +344,7 @@ export class AWSBaseServices {
             await this.s3Client.send(command);
             return `https://${bucketName}.s3.amazonaws.com/${key}`;
         } catch (error: any) {
-            console.error('Error uploading to S3:', error);
-            throw new Error(`Failed to upload to S3: ${error.message}`);
+            throw new ServiceError(`Failed to upload to S3: ${error.message}`);
         }
     }
 }

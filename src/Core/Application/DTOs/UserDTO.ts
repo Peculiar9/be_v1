@@ -1,5 +1,4 @@
-import { IsNotEmpty, IsString, IsEmail, IsOptional, IsEnum, IsArray, ValidateNested, Length, IsBoolean } from 'class-validator';
-import { Type } from 'class-transformer';
+import { IsNotEmpty, IsString, IsEmail, IsOptional, IsEnum, IsArray, Length, IsBoolean } from 'class-validator';
 import { UserRole } from '../Enums/UserRole';
 import type { ILocation } from '../Interface/Entities/auth-and-user/IUser';
 

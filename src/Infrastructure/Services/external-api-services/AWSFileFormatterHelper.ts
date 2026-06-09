@@ -1,4 +1,5 @@
 import { injectable } from 'inversify';
+import { ValidationError } from '@Core/Application/Error/AppError';
 
 /**
  * Helper class for formatting AWS file templates with variables
@@ -13,7 +14,7 @@ export class AWSFileFormatterHelper {
      */
     public formatTemplate(template: string, variables: Record<string, string>): string {
         if (!template) {
-            throw new Error('Template string is required');
+            throw new ValidationError('Template string is required');
         }
 
         if (!variables || Object.keys(variables).length === 0) {
@@ -25,24 +26,19 @@ export class AWSFileFormatterHelper {
         const matches = template.match(variablePattern) || [];
         const uniqueVariables = [...new Set(matches)].map(match => match.slice(2, -2));
 
-        console.log("AWSFileFormatterHelper::formatTemplate:: uniqueVariables: ", {uniqueVariables});
-        console.log("AWSFileFormatterHelper::formatTemplate:: matches: ", {matches})
         // Validate that all required variables are provided
         const missingVariables = uniqueVariables.filter(variable => !(variable in variables));
-        console.log("AWSFileFormatterHelper::formatTemplate:: missingVariables: ", {missingVariables});
         if (missingVariables.length > 0) {
-            throw new Error(`Missing required variables: ${missingVariables.join(', ')}`);
+            throw new ValidationError(`Missing required variables: ${missingVariables.join(', ')}`);
         }
 
         // Replace all variables with their values
         return template.replace(variablePattern, (match, variable) => {
             const value = variables[variable];
             if (value === undefined || value === null) {
-                throw new Error(`Value for variable ${variable} is undefined or null`);
+                throw new ValidationError(`Value for variable ${variable} is undefined or null`);
             }
-            const formatedTemplate = String(value);
-            console.log("AWSFileFormatterHelper::formatTemplate:: formattedTemplate: ", {formatedTemplate});
-            return formatedTemplate;
+            return String(value);
         });
     }
 
@@ -51,7 +47,7 @@ export class AWSFileFormatterHelper {
      * @param data Object containing email data
      * @returns Record of variable names and their values
      */
-    public createEmailVariables(data: Record<string, any>): Record<string, string> {
+    public createEmailVariables(data: object): Record<string, string> {
         const variables: Record<string, string> = {};
         
         // Process each property in the data object
@@ -61,9 +57,6 @@ export class AWSFileFormatterHelper {
             }
         });
 
-        // Add any additional common variables
-        variables.CompanyName = variables.CompanyName;
-        
         return variables;
     }
 
@@ -81,19 +74,19 @@ export class AWSFileFormatterHelper {
         const closeBraces = (template.match(/}}/g) || []).length;
         
         if (openBraces !== closeBraces) {
-            throw new Error('Template has unmatched braces');
+            throw new ValidationError('Template has unmatched braces');
         }
 
         // Check for empty variable names
         const emptyVariables = matches.some(match => match === '{{}}');
         if (emptyVariables) {
-            throw new Error('Template contains empty variable placeholders');
+            throw new ValidationError('Template contains empty variable placeholders');
         }
 
         // Check for nested variables
         const nestedVariables = matches.some(match => match.match(/{{.*{{.*}}.*}}/));
         if (nestedVariables) {
-            throw new Error('Template contains nested variable placeholders');
+            throw new ValidationError('Template contains nested variable placeholders');
         }
 
         return true;
