@@ -14,18 +14,15 @@ export class UserRepository extends BaseRepository<IUser> {
         super(transactionManager, TableNames.USERS);
     }
 
-    async findById(id: string): Promise<any> {
+    async findById(id: string): Promise<IUser | null> {
         try {
             const result = await this.executeQuery<IUser>(
                 `SELECT * FROM ${this.tableName} WHERE _id = $1`,
                 [id]
             );
-            return result.rows[0] || null;
+            return result.rows[0] as unknown as IUser || null;
         } catch (error: any) {
-            console.error('UserRepository::findById(): ', {
-                message: error.message,
-                stack: error.stack
-            });
+            throw new DatabaseError(`Failed to find user by id: ${error.message}`);
         }
     }
 
@@ -37,23 +34,18 @@ export class UserRepository extends BaseRepository<IUser> {
             );
             return (result.rows[0] as unknown as IUser) || null;
         } catch (error: any) {
-            console.error('UserRepository::findByPhone(): ', {
-                message: error.message,
-                stack: error.stack
-            });
-            return null;
+            throw new DatabaseError(`Failed to find user by phone: ${error.message}`);
         }
     }
 
-    async findAll(): Promise<any> {
+    async findAll(): Promise<IUser[]> {
         const result = await this.executeQuery<IUser>(
             `SELECT * FROM ${this.tableName} ORDER BY created_at DESC`
         );
-        return result.rows;
+        return result.rows as unknown as IUser[];
     }
 
-    // async create(entity: IUser): Promise<IUser> {
-    async create(entity: IUser): Promise<any> {
+    async create(entity: IUser): Promise<IUser> {
         try {
             const { columns, values, placeholders } = this.getEntityColumns(entity);
             const query = `INSERT INTO ${this.tableName} (${columns.join(', ')})
@@ -62,25 +54,22 @@ export class UserRepository extends BaseRepository<IUser> {
             `;
 
             const result = await this.executeQuery<IUser>(query, values);
-            return result.rows[0];
+            return result.rows[0] as unknown as IUser;
         } catch (error: any) {
-            console.error('UserRepository::create(): ', {
-                message: error.message,
-                stack: error.stack
-            });
+            throw new DatabaseError(`Failed to create user: ${error.message}`);
         }
     }
 
-    async findByCondition(condition: Partial<IUser>): Promise<any> {
+    async findByCondition(condition: Partial<IUser>): Promise<IUser[]> {
         const { whereClause, values } = this.buildWhereClause(condition);
         const result = await this.executeQuery<IUser>(
             `SELECT * FROM ${this.tableName} ${whereClause}`,
             values
         );
-        return result.rows;
+        return result.rows as unknown as IUser[];
     }
 
-    async update(id: string, entity: Partial<IUser>): Promise<any> {
+    async update(id: string, entity: Partial<IUser>): Promise<IUser | null> {
         const { setClause, values } = this.buildUpdateSet(entity);
         const result = await this.executeQuery<IUser>(
             `UPDATE ${this.tableName} 
@@ -89,19 +78,19 @@ export class UserRepository extends BaseRepository<IUser> {
             RETURNING *`,
             [...values, id]
         );
-        return result.rows[0] || null;
+        return result.rows[0] as unknown as IUser || null;
     }
 
-    async updateByPhone(phone: string, entity: Partial<IUser>): Promise<any> {
+    async updateByPhone(phone: string, entity: Partial<IUser>): Promise<IUser | null> {
         const { setClause, values } = this.buildUpdateSet(entity);
         const result = await this.executeQuery<IUser>(
             `UPDATE ${this.tableName} 
             SET ${setClause}, updated_at = NOW()
-            WHERE phone = $2
+            WHERE phone = $${values.length + 1}
             RETURNING *`,
             [...values, phone]
         );
-        return result.rows[0] || null;
+        return result.rows[0] as unknown as IUser || null;
     }
 
     async delete(id: string): Promise<boolean> {
@@ -120,11 +109,6 @@ export class UserRepository extends BaseRepository<IUser> {
         return result.rowCount as number > 0;
     }
 
-    async executeRawQuery(query: string, params: any[]): Promise<any> {
-        const result = await this.executeQuery(query, params);
-        return result.rows;
-    }
-
     async count(condition?: Partial<IUser>): Promise<number> {
         if (condition) {
             const { whereClause, values } = this.buildWhereClause(condition);
@@ -132,13 +116,13 @@ export class UserRepository extends BaseRepository<IUser> {
                 `SELECT COUNT(*) as count FROM ${this.tableName} ${whereClause}`,
                 values
             );
-            return parseInt((result.rows[0] as any).count);
+            return parseInt((result.rows[0] as { count: string }).count, 10);
         }
 
         const result = await this.executeQuery<{ count: string }>(
             `SELECT COUNT(*) as count FROM ${this.tableName}`
         );
-        return parseInt((result.rows[0] as any).count);
+        return parseInt((result.rows[0] as { count: string }).count, 10);
     }
 
     async findByEmail(email: string): Promise<IUser | null> {
@@ -147,7 +131,7 @@ export class UserRepository extends BaseRepository<IUser> {
             query,
             [email.toLowerCase()]
         );
-        return result.rows[0] as any || null;
+        return result.rows[0] as unknown as IUser || null;
     }
 
 
@@ -157,12 +141,12 @@ export class UserRepository extends BaseRepository<IUser> {
      * @param users Array of users to create
      * @returns Array of created users
      */
-    async bulkCreate(users: IUser[]): Promise<any> {
-        const { valuesClause, values, columns } = this.buildBulkInsertClause(users);
-
+    async bulkCreate(users: IUser[]): Promise<IUser[]> {
         if (users.length === 0) {
             return [];
         }
+
+        const { valuesClause, values, columns } = this.buildBulkInsertClause(users);
 
         const query = `
             INSERT INTO ${this.tableName} (${columns.join(', ')})
@@ -172,7 +156,7 @@ export class UserRepository extends BaseRepository<IUser> {
 
         try {
             const result = await this.executeQuery<IUser>(query, values);
-            return result.rows;
+            return result.rows as unknown as IUser[];
         } catch (error: any) {
             throw new DatabaseError(`Bulk user creation failed: ${error.message}`);
         }
@@ -183,13 +167,13 @@ export class UserRepository extends BaseRepository<IUser> {
      * @param users Array of users with their IDs and update data
      * @returns Array of updated users
      */
-    async bulkUpdate(users: Partial<IUser>[]): Promise<any> {
+    async bulkUpdate(users: Partial<IUser>[]): Promise<IUser[]> {
         if (users.length === 0) {
             return [];
         }
 
         const { updateClause, values } = this.buildBulkUpdateClause(users);
-        const userIds = users.map(user => (user as any)._id);
+        const userIds = users.map(user => user._id);
 
         const query = `
             UPDATE ${this.tableName}
@@ -200,7 +184,7 @@ export class UserRepository extends BaseRepository<IUser> {
 
         try {
             const result = await this.executeQuery<IUser>(query, [...values, userIds]);
-            return result.rows;
+            return result.rows as unknown as IUser[];
         } catch (error: any) {
             throw new DatabaseError(`Bulk user update failed: ${error.message}`);
         }
@@ -211,7 +195,7 @@ export class UserRepository extends BaseRepository<IUser> {
      * @param ids Array of user IDs to delete
      * @returns Number of deleted users
      */
-    async bulkDelete(ids: string[]): Promise<any> {
+    async bulkDelete(ids: string[]): Promise<number> {
         if (ids.length === 0) {
             return 0;
         }
@@ -224,7 +208,7 @@ export class UserRepository extends BaseRepository<IUser> {
 
         try {
             const result = await this.executeQuery(query, [ids]);
-            return result.rowCount;
+            return result.rowCount ?? 0;
         } catch (error: any) {
             throw new DatabaseError(`Bulk user deletion failed: ${error.message}`);
         }
