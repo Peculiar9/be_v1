@@ -1,48 +1,31 @@
 import { injectable } from 'inversify';
 import { Console } from '@Infrastructure/Utils/Console';
-import { AppError, DatabaseError } from '@Core/Application/Error/AppError';
+import { AppError } from '@Core/Application/Error/AppError';
 import * as Sentry from '@sentry/node';
+import type { Context } from 'hono';
+import { ResponseHelper, errorDetails } from '@Core/Application/Response/ResponseHelper';
 
 @injectable()
 export class ErrorHandlerMiddleware {
-    public static handleError(err: any, req: any, res: any, next: any) {
-        // Determine status code
-        const statusCode = err.statusCode || 500;
+    public static handleError(err: Error, c: Context) {
+        const details = errorDetails(err);
         
-        // Create a structured error object for logging
         const errorContext = {
-            url: req.originalUrl,
-            method: req.method,
-            statusCode,
+            url: c.req.path,
+            method: c.req.method,
+            statusCode: details.statusCode,
             errorName: err.name,
-            errorCode: err.errorCode,
+            errorCode: err instanceof AppError ? err.errorCode : details.errorCode,
             stack: err.stack
         };
         
-        // Log the error with appropriate severity
-        if (statusCode >= 500) {
+        if (details.statusCode >= 500) {
             Console.error(err, errorContext);
-            
-            // Report server errors to Sentry
             Sentry.captureException(err);
         } else {
             Console.warn(err.message, errorContext);
         }
         
-        // Determine appropriate error message
-        let message = err.message || 'An unexpected error occurred';
-        
-        // In production, don't expose internal server error details
-        if (statusCode === 500 && process.env.NODE_ENV === 'production') {
-            message = 'Internal Server Error';
-        }
-        
-        // Send consistent JSON response
-        return res.status(statusCode).json({
-            success: false,
-            message,
-            errorCode: err.errorCode,
-            data: null
-        });
+        return ResponseHelper.error(c, err);
     }
 }

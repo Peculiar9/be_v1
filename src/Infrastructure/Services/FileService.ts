@@ -1,8 +1,7 @@
 import { inject, injectable } from "inversify";
 import { UploadPurpose } from "@Core/Application/Interface/Entities/file-manager/IFileManager";
 import { CreateFileManagerDTO } from "@Core/Application/DTOs/FileManagerDTO";
-import { TransactionManager } from "../Repository/SQL/Abstractions/TransactionManager";
-import { DatabaseIsolationLevel } from "@Core/Application/Enums/DatabaseIsolationLevel";
+import { TransactionManager } from "peculiar-orm";
 import { UtilityService } from "@Core/Services/UtilityService";
 import { Console, LogLevel } from "../Utils/Console";
 import { TYPES } from "@Core/Types/Constants";
@@ -11,14 +10,19 @@ import { FileManagerRepository } from "../Repository/SQL/files/FileManagerReposi
 import { AWSHelper } from "../Services/external-api-services/AWSHelper";
 import { IFileService } from "@Core/Application/Interface/Services/IFileService";
 import { Readable } from "stream";
+import type { UploadedFile } from "@Core/Application/Types/UploadedFile";
+import { DatabaseError, ValidationError } from "@Core/Application/Error/AppError";
+import { BaseService } from "./base/BaseService";
 
 @injectable()
-export class FileService implements IFileService {
+export class FileService extends BaseService implements IFileService {
     constructor(
         @inject(TYPES.FileManagerRepository) private fileManagerRepository: FileManagerRepository,
         @inject(TYPES.AWSHelper) private awsHelper: AWSHelper,
-        @inject(TYPES.TransactionManager) private transactionManager: TransactionManager
-    ) {}
+        @inject(TYPES.TransactionManager) protected readonly transactionManager: TransactionManager
+    ) {
+        super(transactionManager);
+    }
  
     async fileFormatter(Body: Readable, ContentType: string, fileKey: string): Promise<Readable> {
         try {
@@ -53,7 +57,7 @@ export class FileService implements IFileService {
         
         if (!allowedFileTypes.includes(fileType.toLowerCase())) {
             Console.write('Invalid file type', LogLevel.WARNING, { fileType, allowedFileTypes });
-            throw new Error(`Invalid file type: ${fileType}. Allowed types: ${allowedFileTypes.join(', ')}`);
+            throw new ValidationError(`Invalid file type: ${fileType}. Allowed types: ${allowedFileTypes.join(', ')}`);
         }
     }
 
@@ -62,7 +66,7 @@ export class FileService implements IFileService {
         
         if (!allowedImageTypes.includes(fileType.toLowerCase())) {
             Console.write('Invalid image type', LogLevel.WARNING, { fileType, allowedImageTypes });
-            throw new Error(`Invalid image type: ${fileType}. Allowed types: ${allowedImageTypes.join(', ')}`);
+            throw new ValidationError(`Invalid image type: ${fileType}. Allowed types: ${allowedImageTypes.join(', ')}`);
         }
     }
 
@@ -75,16 +79,14 @@ export class FileService implements IFileService {
             const maxSizeInMB = (maxFileSize / (1024 * 1024)).toFixed(2);
             
             Console.write('File size exceeds limit', LogLevel.WARNING, { fileSize: sizeInMB + 'MB', maxSize: maxSizeInMB + 'MB' });
-            throw new Error(`File size (${sizeInMB}MB) exceeds the maximum allowed size of ${maxSizeInMB}MB`);
+            throw new ValidationError(`File size (${sizeInMB}MB) exceeds the maximum allowed size of ${maxSizeInMB}MB`);
         }
     }
     
-    async uploadFile(userId: string, file: Express.Multer.File): Promise<FileManager> {
+    async uploadFile(userId: string, file: UploadedFile): Promise<FileManager> {
         try {
             const date = UtilityService.formatDateToUrlSafeISOFormat(new Date());
             const fileName = this.constructFileName(date, 'file', UploadPurpose.UserProfile);
-            const extension = file.mimetype ? file.mimetype.split('/')[1] || 'jpg' : 'jpg';
-            
             // Upload to S3 and get the URL
             const fileUrl = await this.awsHelper.profileImageUpload(file, fileName);
             Console.write('File uploaded to S3', LogLevel.INFO, { fileUrl });
@@ -108,8 +110,6 @@ export class FileService implements IFileService {
             });
             
 
-            console.log("File Manager Object: ", { fileManagerObject });
-
             return fileManagerObject;
         } catch (error: any) {
             Console.write('File upload error', LogLevel.ERROR, { error: error.message, stack: error.stack });
@@ -120,61 +120,51 @@ export class FileService implements IFileService {
     constructFileName(fileName: string, prefix: string, uploadPurpose: string): string {
         const extension = fileName.split('.').pop();
         const name = fileName.split('.').shift();
-        const createdTime = UtilityService.formatDateToUrlSafeISOFormat(new Date());
         const randomString = Math.random().toString(36).substring(2, 8);
         return `${prefix}-${uploadPurpose}-${name}-${randomString}.${extension}`;
     }
 
     async saveFileMetaDataToDatabaseAsync(userId: string, fileType: string, uploadPurpose: string, fileName: string, fileUrl: string): Promise<FileManager> {
-        let transactionSuccessfullyStarted = false;
         try {
-            // await this.transactionManager.beginTransaction({
-            //     isolationLevel: DatabaseIsolationLevel.READ_COMMITTED,
-            // });
-            transactionSuccessfullyStarted = true;
+            return await this.withTransaction(async () => {
+                const fileManagerDTO: CreateFileManagerDTO = {
+                    user_id: userId,
+                    file_type: fileType,
+                    upload_purpose: uploadPurpose,
+                    file_name: fileName,
+                    file_url: fileUrl
+                };
 
-            // Create file manager using DTO pattern
-            const fileManagerDTO: CreateFileManagerDTO = {
-                user_id: userId,
-                file_type: fileType,
-                upload_purpose: uploadPurpose,
-                file_name: fileName,
-                file_url: fileUrl
-            };
-            
-            Console.write('Creating file manager from DTO', LogLevel.INFO, { fileManagerDTO });
-            const fileManager = await FileManager.createFromDTO(fileManagerDTO);
-            
-            // Check if this user already has a profile image
-            if (uploadPurpose === UploadPurpose.UserProfile) {
-                const existingFiles = await this.fileManagerRepository.findByUserId(userId);
-                const existingProfileImage = existingFiles.find(file => file.upload_purpose === UploadPurpose.UserProfile);
+                Console.write('Creating file manager from DTO', LogLevel.INFO, { fileManagerDTO });
+                const fileManager = await FileManager.createFromDTO(fileManagerDTO);
 
-                if (existingProfileImage) {
-                    Console.write('Updating existing profile image record', LogLevel.INFO, { 
-                        existingFileId: existingProfileImage._id,
-                        userId
-                    });
-                    
-                    // Update existing record
-                    await this.fileManagerRepository.update(existingProfileImage._id, {
-                        file_key: fileManager.file_key,
-                        file_type: fileManager.file_type,
-                        file_url: fileManager.file_url,
-                        file_extension: fileManager.file_extension
-                    });
-                    
-                    // await this.transactionManager.commit();
-                    return fileManager;
+                if (uploadPurpose === UploadPurpose.UserProfile) {
+                    const existingFiles = await this.fileManagerRepository.findByUserId(userId);
+                    const existingProfileImage = existingFiles.find(file => file.upload_purpose === UploadPurpose.UserProfile);
+
+                    if (existingProfileImage) {
+                        Console.write('Updating existing profile image record', LogLevel.INFO, {
+                            existingFileId: existingProfileImage._id,
+                            userId
+                        });
+
+                        await this.fileManagerRepository.update(existingProfileImage._id, {
+                            file_key: fileManager.file_key,
+                            file_type: fileManager.file_type,
+                            file_url: fileManager.file_url,
+                            file_extension: fileManager.file_extension
+                        });
+
+                        return fileManager;
+                    }
                 }
-            }
-            
-            Console.write('Saving new file manager to database', LogLevel.INFO, { fileManager });
-            const fileManagerObject = await this.fileManagerRepository.create(fileManager);
-            Console.write('File manager record created', LogLevel.INFO, { fileManagerObject });
-            
-            // await this.transactionManager.commit();
-            return fileManagerObject;
+
+                Console.write('Saving new file manager to database', LogLevel.INFO, { fileManager });
+                const fileManagerObject = await this.fileManagerRepository.create(fileManager);
+                Console.write('File manager record created', LogLevel.INFO, { fileManagerObject });
+
+                return fileManagerObject;
+            });
         } catch (error: any) {
             Console.write('Error saving file metadata to database', LogLevel.ERROR, { 
                 error: error.message, 
@@ -188,19 +178,7 @@ export class FileService implements IFileService {
                 }
             });
 
-            if (transactionSuccessfullyStarted) {
-                try {
-                    Console.write('Attempting rollback for file metadata save', LogLevel.INFO);
-                    await this.transactionManager.rollback();
-                } catch (rollbackError: any) {
-                    Console.write('CRITICAL: Rollback FAILED for file metadata save', LogLevel.ERROR, {
-                        error: rollbackError.message,
-                        stack: rollbackError.stack
-                    });
-                }
-            }
-
-            throw new Error(`Failed to save file metadata: ${error.message}`);
+            throw new DatabaseError(`Failed to save file metadata: ${error.message}`);
         }
     }
 }

@@ -1,10 +1,10 @@
 import { Readable } from 'stream';
-import type { IUser } from '../Entities/auth-and-user/IUser';
 import { FileManager } from '../../Entities/FileManager';
+import type { UploadedFile } from '../../Types/UploadedFile';
 
 export interface IFileService {
 
-  uploadFile(userId: string, file: Express.Multer.File): Promise<FileManager>;
+  uploadFile(userId: string, file: UploadedFile): Promise<FileManager>;
 
   /**
    * Formats a file based on its type and performs specific actions (e.g., email or image processing).
@@ -61,18 +61,3 @@ export interface IFileService {
 //   contentType: string;
 //   createdTime: number;
 // }
-
-enum UploadPurpose {
-  Verification = 'Verification',
-  Profile = 'Profile',
-  CarImage = 'CarImage',
-}
-
-enum BucketName {
-  VERIFICATION = 'verification-bucket',
-  PROFILE = 'profile-bucket',
-  CAR_IMAGE = 'car-image-bucket',
-}
-
-const allowedFileTypes = ['image/jpeg', 'image/png', 'text/html'];
-const allowedImageFileTypes = ['image/jpeg', 'image/png'];

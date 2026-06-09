@@ -5,6 +5,7 @@ import type { IMediaService } from '../Interface/Services/IMediaService';
 import type { IFileService } from '../Interface/Services/IFileService';
 import { ValidationError } from '../Error/AppError';
 import { Console, LogLevel } from '@Infrastructure/Utils/Console';
+import type { UploadedFile } from '../Types/UploadedFile';
 
 @injectable()
 export class FileUseCase implements IFileUseCase {
@@ -14,14 +15,14 @@ export class FileUseCase implements IFileUseCase {
     ) {}
 
     /**
-     * Upload a single file using Cloudinary service
+     * Upload a single file using the configured media service
      * @param userId User ID
      * @param file File to upload
      * @param uploadPurpose Purpose of the upload
      * @param fileCategory Optional file category
      * @returns Upload result with file URL and metadata
      */
-    async uploadFile(userId: string, file: Express.Multer.File, uploadPurpose: string, fileCategory?: string): Promise<any> {
+    async uploadFile(userId: string, file: UploadedFile, uploadPurpose: string, fileCategory?: string): Promise<any> {
         try {
             Console.write('FileUseCase::uploadFile -> Starting file upload', LogLevel.INFO, {
                 userId,

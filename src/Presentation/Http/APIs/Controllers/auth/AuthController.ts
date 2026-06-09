@@ -1,4 +1,3 @@
-import { BASE_PATH } from "@Core/Types/Constants";
 import { controller, httpGet, httpPost, httpPut, ctx, body } from "hono-injector";
 import { BaseController } from "../BaseController";
 import { ResponseMessage } from "@Core/Application/Response/ResponseFormat";
@@ -12,6 +11,7 @@ import AuthMiddleware from "../../Middleware/AuthMiddleware";
 import type { IUser } from "@Core/Application/Interface/Entities/auth-and-user/IUser";
 import { uploadSingle } from "../../Middleware/MulterMiddleware";
 import { validationMiddleware } from "../../Middleware/ValidationMiddleware";
+import type { UploadedFile } from "@Core/Application/Types/UploadedFile";
 
 @controller(`/auth`)
 export class AuthController extends BaseController {
@@ -33,7 +33,6 @@ export class AuthController extends BaseController {
     @httpPost("/register", [validationMiddleware(UserRegistrationDTO)])
     async register(@body() dto: UserRegistrationDTO, @ctx() c: Context) {
         try {
-            console.log('AuthController::register -> ', dto);
             const result = await this.authUseCase.register(dto);
             return this.success(c, result, ResponseMessage.SUCCESSFUL_REGISTRATION);
         } catch (error: any) {
@@ -44,7 +43,6 @@ export class AuthController extends BaseController {
     @httpPost("/resend-email-verification", [validationMiddleware(VerifyEmailDTO)])
     async resendEmailVerification(@body() dto: VerifyEmailDTO, @ctx() c: Context) {
         try {
-            console.log('AuthController::resendEmailVerification -> ', dto);
             const result = await this.authUseCase.resendEmailVerification(dto);
             return this.success(c, result, ResponseMessage.SUCCESSFUL_REQUEST_MESSAGE);
         } catch (error: any) {
@@ -55,7 +53,6 @@ export class AuthController extends BaseController {
     @httpPost("/login", [validationMiddleware(LoginDTO)])
     async login(@body() dto: LoginDTO, @ctx() c: Context) {
         try {
-            console.log('AuthController::login -> ', dto);
             const result = await this.authUseCase.login({
                 identifier: dto.identifier,
                 password: dto.password,
@@ -77,16 +74,14 @@ export class AuthController extends BaseController {
                 return this.error(c, "No file uploaded", 400);
             }
 
-            // Mock Multer file to satisfy service interface if needed, or pass file directly if service updated
-            // For now, providing a best-effort mock
-            const mockMulterFile: any = {
+            const uploadedFile: UploadedFile = {
                 buffer: Buffer.from(await file.arrayBuffer()),
                 originalname: file.name,
                 mimetype: file.type,
                 size: file.size,
             };
 
-            const result = await this.authUseCase.updateProfileImage(mockMulterFile, user);
+            const result = await this.authUseCase.updateProfileImage(uploadedFile, user);
             return this.success(c, result, ResponseMessage.SUCCESSFUL_REQUEST_MESSAGE);
         } catch (error: any) {
             return this.error(c, error.message, error.statusCode);
@@ -103,10 +98,11 @@ export class AuthController extends BaseController {
         }
     }
 
-    @httpPost("/logout", [AuthMiddleware.initializeContext()])
+    @httpPost("/logout", [AuthMiddleware.authenticate(), AuthMiddleware.initializeContext()])
     async logout(@ctx() c: Context) {
         try {
-            const result = await this.authUseCase.logout();
+            const user = c.get('user') as IUser;
+            const result = await this.authUseCase.logout(user);
             return this.success(c, result, ResponseMessage.SUCCESSFUL_REQUEST_MESSAGE);
         } catch (error: any) {
             return this.error(c, error.message, error.statusCode);
@@ -120,7 +116,6 @@ export class AuthController extends BaseController {
     @httpPost("/forgot-password", [validationMiddleware(ForgotPasswordDTO)])
     async forgotPassword(@body() dto: ForgotPasswordDTO, @ctx() c: Context) {
         try {
-            console.log('AuthController::forgotPassword -> ', dto.email);
             const result = await this.authUseCase.forgotPassword(dto);
             return this.success(c, result, "Password reset link has been sent to your email");
         } catch (error: any) {
@@ -135,7 +130,6 @@ export class AuthController extends BaseController {
     @httpPost("/reset-password", [validationMiddleware(ResetPasswordDTO)])
     async resetPassword(@body() dto: ResetPasswordDTO, @ctx() c: Context) {
         try {
-            console.log('AuthController::resetPassword -> token provided');
             const result = await this.authUseCase.resetPassword(dto);
             return this.success(c, result, "Password has been reset successfully");
         } catch (error: any) {
@@ -150,7 +144,6 @@ export class AuthController extends BaseController {
     @httpPut("/change-password", [AuthMiddleware.authenticate(), validationMiddleware(ChangePasswordDTO)])
     async changePassword(@body() dto: ChangePasswordDTO, @ctx() c: Context) {
         try {
-            console.log('AuthController::changePassword -> request received');
             const user = c.get('user') as IUser;
             const result = await this.authUseCase.changePassword(dto, user);
             return this.success(c, result, "Password has been changed successfully");
@@ -166,7 +159,6 @@ export class AuthController extends BaseController {
     @httpGet("/me", [AuthMiddleware.authenticate()])
     async getCurrentUser(@ctx() c: Context) {
         try {
-            console.log('AuthController::getCurrentUser -> request received');
             const user = c.get('user') as IUser;
             const result = await this.authUseCase.getCurrentUser(user);
             return this.success(c, result, ResponseMessage.SUCCESSFUL_REQUEST_MESSAGE);
