@@ -8,8 +8,11 @@ export interface IVerification {
     identifier?: string;
     reference: string;
     otp?: OTP;
+    code?: string;
+    attempts?: number;
     status?: VerificationStatus | string;
     expiry?: number;
+    metadata?: Record<string, unknown>;
     created_at?: string;
     updated_at?: string;
 }
@@ -18,6 +21,8 @@ export enum VerificationType {
     PHONE = 'phone',
     EMAIL = 'email',
     OAUTH = 'oauth',
+    OTP = 'otp',
+    CUSTOM = 'custom',
 }
 
 export interface IUserKYC {
@@ -27,24 +32,27 @@ export interface IUserKYC {
   status: KYCStatus;
   last_updated: Date | string;
   failure_reason?: string | null;
-  stage_metadata: Record<string, any>;
+  stage_metadata: Record<string, unknown>;
 }
 
 
 export enum KYCStage {
-    EMAIL_VERIFICATION = 'email-verification',
-    PHONE_VERIFICATION = 'phone-verification',
-    FACE_UPLOAD = 'face-upload',
-    LICENSE_UPLOAD = 'license-upload',
-    FACE_COMPARISON = 'face-comparison',
-    DETAILS_VERIFICATION = 'details-verification',
-    PAYMENT_METHOD = 'payment-method',
+    NOT_STARTED = 'not-started',
+    PROFILE = 'profile',
+    EMAIL = 'email',
+    PHONE = 'phone',
+    IDENTITY = 'identity',
+    DOCUMENT = 'document',
+    ADDRESS = 'address',
+    REVIEW = 'review',
     COMPLETED = 'completed'
   }
   
   export enum KYCStatus {
     PENDING = 'pending',
     IN_PROGRESS = 'in-progress',
+    APPROVED = 'approved',
+    REJECTED = 'rejected',
     COMPLETED = 'completed',
     FAILED = 'failed'
   }

@@ -17,7 +17,7 @@ export class UserKYCRepository extends BaseRepository<UserKYC> implements IRepos
     
     async findById(id: string): Promise<UserKYC | null> {
         const result = await this.executeQuery<UserKYC>(
-          `SELECT * FROM ${this.tableName}WHERE _id = $1`,
+          `SELECT * FROM ${this.tableName} WHERE _id = $1`,
           [id]
       );
          return result.rows[0] as unknown as UserKYC;
@@ -51,7 +51,7 @@ export class UserKYCRepository extends BaseRepository<UserKYC> implements IRepos
       async update(id: string, entity: Partial<UserKYC>): Promise<UserKYC | null> {
         const { setClause, values } = this.buildUpdateSet(entity);
         const result = await this.executeQuery<UserKYC>(
-          `UPDATE ${this.tableName} SET ${setClause} WHERE id = $${values.length + 1} RETURNING *`,
+          `UPDATE ${this.tableName} SET ${setClause} WHERE _id = $${values.length + 1} RETURNING *`,
           [...values, id]
         );
         return result.rows[0] as unknown as UserKYC || null;
@@ -59,7 +59,7 @@ export class UserKYCRepository extends BaseRepository<UserKYC> implements IRepos
     
       async delete(id: string): Promise<boolean> {
         const result = await this.executeQuery(
-          `DELETE FROM ${this.tableName} WHERE id = $1`,
+          `DELETE FROM ${this.tableName} WHERE _id = $1`,
           [id]
         );
         return result.rowCount as number > 0;
@@ -151,13 +151,12 @@ export class UserKYCRepository extends BaseRepository<UserKYC> implements IRepos
        SET current_stage = $1, status = $2, last_updated = NOW(), failure_reason = NULL, stage_metadata = '{}'::jsonb
        WHERE user_id = $3
        RETURNING *`,
-      [KYCStage.FACE_UPLOAD, KYCStatus.PENDING, userId]
+      [KYCStage.IDENTITY, KYCStatus.PENDING, userId]
     );
     return result.rows[0] as unknown as UserKYC || null;
   }
 
-  async createOrUpdate(userId: string, initialStage: KYCStage = KYCStage.FACE_UPLOAD): Promise<UserKYC> {
-    // Upsert logic: insert if not exists, else return existing
+  async createOrUpdate(userId: string, initialStage: KYCStage = KYCStage.IDENTITY): Promise<UserKYC> {
     const result = await this.executeQuery<UserKYC>(
       `INSERT INTO ${this.tableName} (user_id, current_stage, status, last_updated, stage_metadata)
        VALUES ($1, $2, $3, NOW(), '{}'::jsonb)
