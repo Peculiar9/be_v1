@@ -65,7 +65,7 @@ export class PaymentMethod implements IPaymentMethod {
     };
 
     @Column('JSONB DEFAULT NULL')
-    public metadata?: Record<string, any>;
+    public metadata?: Record<string, unknown>;
 
     @Index({ unique: false })
     @Column('TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP')
@@ -80,17 +80,9 @@ export class PaymentMethod implements IPaymentMethod {
     }
 
     static create(data: Partial<IPaymentMethod>): PaymentMethod {
-        try {
-            const paymentMethod = new PaymentMethod(data);
-            paymentMethod.validate();
-            return paymentMethod;
-        } catch (error: any) {
-            console.error('PaymentMethod Object creation: ', {
-                message: error.message,
-                stack: error.stack
-            });
-            throw error;
-        }
+        const paymentMethod = new PaymentMethod(data);
+        paymentMethod.validate();
+        return paymentMethod;
     }
 
     static createCreditCard(
@@ -102,7 +94,7 @@ export class PaymentMethod implements IPaymentMethod {
         expiryMonth: number,
         expiryYear: number,
         isDefault: boolean = false,
-        billingDetails?: any,
+        billingDetails?: IPaymentMethod['billing_details'],
         nickname?: string
     ): PaymentMethod {
         return PaymentMethod.create({
@@ -127,7 +119,7 @@ export class PaymentMethod implements IPaymentMethod {
         providerPaymentMethodId: string,
         lastFour: string,
         isDefault: boolean = false,
-        billingDetails?: any,
+        billingDetails?: IPaymentMethod['billing_details'],
         nickname?: string
     ): PaymentMethod {
         return PaymentMethod.create({
@@ -149,7 +141,7 @@ export class PaymentMethod implements IPaymentMethod {
         providerPaymentMethodId: string,
         walletType: string,
         isDefault: boolean = false,
-        billingDetails?: any,
+        billingDetails?: IPaymentMethod['billing_details'],
         nickname?: string
     ): PaymentMethod {
         return PaymentMethod.create({
@@ -166,23 +158,15 @@ export class PaymentMethod implements IPaymentMethod {
     }
 
     static update(existingPaymentMethod: IPaymentMethod, data: Partial<IPaymentMethod>): Partial<IPaymentMethod> {
-        try {
-            // Only include fields that are actually being updated
-            const updateData: Partial<IPaymentMethod> = {
-                _id: existingPaymentMethod._id, // Keep the ID for reference
-                ...data,
-            };
+        // Only include fields that are actually being updated
+        const updateData: Partial<IPaymentMethod> = {
+            _id: existingPaymentMethod._id, // Keep the ID for reference
+            ...data,
+        };
 
-            const paymentMethod = new PaymentMethod(updateData);
-            paymentMethod.validateForUpdate();
-            return updateData;
-        } catch (error: any) {
-            console.error('PaymentMethod Object update: ', {
-                message: error.message,
-                stack: error.stack
-            });
-            throw error;
-        }
+        const paymentMethod = new PaymentMethod(updateData);
+        paymentMethod.validateForUpdate();
+        return updateData;
     }
 
     setAsDefault(): void {

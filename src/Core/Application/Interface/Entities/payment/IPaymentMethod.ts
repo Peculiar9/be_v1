@@ -16,15 +16,15 @@ export interface IPaymentMethod {
   _id?: string;
   user_id: string;
   type: PaymentMethodType | string;
-  provider: string; // 'stripe', 'paypal', etc.
-  provider_payment_method_id: string; // External ID from the payment provider
+  provider: string;
+  provider_payment_method_id: string;
   status: PaymentMethodStatus | string;
   is_default: boolean;
-  nickname?: string; // User-defined name for this payment method
-  last_four?: string; // Last four digits of card or account
-  expiry_month?: number; // For cards
-  expiry_year?: number; // For cards
-  card_brand?: string; // Visa, Mastercard, etc.
+  nickname?: string;
+  last_four?: string;
+  expiry_month?: number;
+  expiry_year?: number;
+  card_brand?: string;
   billing_details?: {
     address?: {
       city?: string;
@@ -38,7 +38,7 @@ export interface IPaymentMethod {
     name?: string;
     phone?: string;
   };
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
   created_at: Date | string;
   updated_at: Date | string;
 }

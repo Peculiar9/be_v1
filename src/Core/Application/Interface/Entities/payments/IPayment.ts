@@ -61,7 +61,7 @@ export enum RelatedEntityType {
 export interface IPaymentMethod {
     _id?: string;
     user_id: string;
-    stripe_payment_method_id: string;
+    provider_payment_method_id: string;
     type: PaymentMethodType;
     is_default: boolean;
     card_details?: {
@@ -90,7 +90,7 @@ export interface ITransaction {
     related_entity_type: RelatedEntityType | string;
     related_entity_id: string;
     type: TransactionType | string;
-    amount: number;
+    amountMinor: number;
     currency: string;
     status: TransactionStatus | string;
     
@@ -104,9 +104,9 @@ export interface ITransaction {
     payment_method_id?: string;
     
     description: string;
-    metadata?: Record<string, any>; // Provider-specific data goes here
+    metadata?: Record<string, unknown>;
     failure_reason?: string;
-    refunded_amount?: number;
+    refundedAmountMinor?: number;
     refunded_at?: string;
     completed_at?: string;
     created_at: string;
@@ -122,13 +122,12 @@ export interface IPayout {
     installer_id: string;
     
     // Amount details
-    amount: number;
+    amountMinor: number;
     currency: string;
     
-    // Paystack details
-    paystack_transfer_code?: string;
-    paystack_transfer_id?: string;
-    paystack_recipient_code: string;
+    provider_transfer_code?: string;
+    provider_transfer_id?: string;
+    provider_recipient_code: string;
     
     // Bank details
     bank_name: string;
@@ -147,7 +146,7 @@ export interface IPayout {
     initiated_at: string;
     processed_at?: string;
     
-    metadata?: Record<string, any>;
+    metadata?: Record<string, unknown>;
     created_at: string;
     updated_at: string;
 }
