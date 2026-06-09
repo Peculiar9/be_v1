@@ -12,11 +12,9 @@ export class InitController extends BaseController {
     }
 
     @httpGet('')
-    async baseMethod() {
-        //This is what anyone who calls the base Url sees
-        console.log('it got here!!!')
+    async baseMethod(@ctx() c: Context) {
         const baseRequestPayload = this.constructBaseRouterPayload();
-        return baseRequestPayload;
+        return this.success(c, baseRequestPayload, ResponseMessage.SUCCESSFUL_REQUEST_MESSAGE);
     }
 
     // Health check moved to HealthController
@@ -33,7 +31,6 @@ export class InitController extends BaseController {
                 description: `API for managing ${APP_NAME} functionalities and requests`,
                 documentation: `https://postman.docs/${API_DOC_URL}`
             },
-            success: true,
             authentication: "This API needs AccessKeys and JWT to gain access",
             scopes: [],
             request_time: reqTimeUnix
@@ -47,7 +44,6 @@ export class InitController extends BaseController {
 
 interface IBaseUrlPayload {
     api_info: IApiInfo;
-    success: boolean;
     authentication: string;
     scopes: [];
     request_time: number

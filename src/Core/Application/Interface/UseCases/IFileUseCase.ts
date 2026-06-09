@@ -1,3 +1,5 @@
+import type { UploadedFile } from "../../Types/UploadedFile";
+
 export interface IFileUseCase {
     /**
      * Upload a single file
@@ -7,5 +9,5 @@ export interface IFileUseCase {
      * @param fileCategory Optional file category
      * @returns Upload result with file URL and metadata
      */
-    uploadFile(userId: string, file: Express.Multer.File, uploadPurpose: string, fileCategory?: string): Promise<any>;
+    uploadFile(userId: string, file: UploadedFile, uploadPurpose: string, fileCategory?: string): Promise<any>;
 }

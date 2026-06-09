@@ -1,11 +1,11 @@
 import type { Context, Next } from 'hono';
 
 export enum ErrorCode {
-    FILE_TOO_LARGE = 'FILE_TOO_LARGE',
-    UPLOAD_ERROR = 'UPLOAD_ERROR',
-    INVALID_FILE_TYPE = 'INVALID_FILE_TYPE',
-    NO_VALID_FILES = 'NO_VALID_FILES',
-    TOO_MANY_FILES = 'TOO_MANY_FILES'
+    FILE_TOO_LARGE = 1301,
+    UPLOAD_ERROR = 1302,
+    INVALID_FILE_TYPE = 1303,
+    NO_VALID_FILES = 1304,
+    TOO_MANY_FILES = 1305
 }
 
 export enum UploadFileType {
@@ -21,6 +21,15 @@ export enum FieldName {
 }
 
 type File = Blob & { name: string; lastModified: number };
+
+const uploadError = (c: Context, message: string, errorCode: ErrorCode, status = 400) => {
+    return c.json({
+        success: false,
+        message,
+        error_code: errorCode,
+        data: null,
+    }, status as 400);
+};
 
 // Helper to validate file
 const validateFile = (file: File) => {
@@ -42,40 +51,24 @@ export const uploadSingle = (fieldName: string = FieldName.FILE) => {
             const file = body[fieldName];
 
             if (!file) {
-                return c.json({
-                    success: false,
-                    message: 'No file uploaded',
-                    errorCode: ErrorCode.NO_VALID_FILES
-                }, 400);
+                return uploadError(c, 'No file uploaded', ErrorCode.NO_VALID_FILES);
             }
 
             if (!(file instanceof Blob)) { // Hono returns Blob/File or string
-                return c.json({
-                    success: false,
-                    message: 'Invalid input',
-                    errorCode: ErrorCode.UPLOAD_ERROR
-                }, 400);
+                return uploadError(c, 'Invalid input', ErrorCode.UPLOAD_ERROR);
             }
 
             const validation = validateFile(file as File);
             if (!validation.valid) {
-                return c.json({
-                    success: false,
-                    message: validation.message,
-                    errorCode: validation.error
-                }, 400);
+                return uploadError(c, validation.message ?? 'Invalid file upload', validation.error as ErrorCode);
             }
 
-            // console.log("File uploaded successfully!!!");
             c.set('file', file); // Store for controller
 
             await next();
-        } catch (err: any) {
-            return c.json({
-                success: false,
-                message: err.message || 'Error uploading file',
-                errorCode: ErrorCode.UPLOAD_ERROR
-            }, 400);
+        } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : 'Error uploading file';
+            return uploadError(c, message, ErrorCode.UPLOAD_ERROR);
         }
     };
 };
@@ -89,21 +82,13 @@ export const uploadMultiple = (fieldName: string = FieldName.FILES, maxCount: nu
             const files = body[fieldName];
 
             if (!files) {
-                return c.json({
-                    success: false,
-                    message: 'No files uploaded',
-                    errorCode: ErrorCode.NO_VALID_FILES
-                }, 400);
+                return uploadError(c, 'No files uploaded', ErrorCode.NO_VALID_FILES);
             }
 
             const fileList = Array.isArray(files) ? files : [files];
 
             if (fileList.length > maxCount) {
-                return c.json({
-                    success: false,
-                    message: `Too many files. Maximum is ${maxCount} files`,
-                    errorCode: ErrorCode.TOO_MANY_FILES
-                }, 400);
+                return uploadError(c, `Too many files. Maximum is ${maxCount} files`, ErrorCode.TOO_MANY_FILES);
             }
 
             const validFiles: File[] = [];
@@ -115,7 +100,8 @@ export const uploadMultiple = (fieldName: string = FieldName.FILES, maxCount: nu
                         return c.json({
                             success: false,
                             message: validation.message,
-                            errorCode: validation.error
+                            error_code: validation.error,
+                            data: null,
                         }, 400);
                     }
                     validFiles.push(f as File);
@@ -123,26 +109,20 @@ export const uploadMultiple = (fieldName: string = FieldName.FILES, maxCount: nu
             }
 
             if (validFiles.length === 0) {
-                return c.json({
-                    success: false,
-                    message: 'No valid files uploaded',
-                    errorCode: ErrorCode.NO_VALID_FILES
-                }, 400);
+                return uploadError(c, 'No valid files uploaded', ErrorCode.NO_VALID_FILES);
             }
 
             c.set('files', validFiles);
             await next();
-        } catch (err: any) {
-            return c.json({
-                success: false,
-                message: err.message || 'Error uploading files',
-                errorCode: ErrorCode.UPLOAD_ERROR
-            }, 400);
+        } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : 'Error uploading files';
+            return uploadError(c, message, ErrorCode.UPLOAD_ERROR);
         }
     };
 };
 
 export const uploadFields = (fields: { name: string; maxCount: number }[]) => {
+    void fields;
     // Implement if needed, similar logic
     return async (c: Context, next: Next) => {
         await next();

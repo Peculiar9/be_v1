@@ -8,6 +8,7 @@ import { uploadSingle } from "../Middleware/MulterMiddleware";
 import { ValidationError } from "@Core/Application/Error/AppError";
 import type { IUser } from "@Core/Application/Interface/Entities/auth-and-user/IUser";
 import type { IFileUseCase } from "@Core/Application/Interface/UseCases/IFileUseCase";
+import type { UploadedFile } from "@Core/Application/Types/UploadedFile";
 
 @controller(`/files`)
 export class FileController extends BaseController {
@@ -45,28 +46,17 @@ export class FileController extends BaseController {
                 throw new ValidationError('Upload purpose is required (e.g., profile_image, certificate, license_document, etc.)');
             }
 
-            // console.log('FileController::uploadFile -> ', {
-            //     userId,
-            //     uploadPurpose,
-            //     fileCategory,
-            //     fileSize: file.size,
-            //     mimeType: file.type
-            // });
-
-            // Mock multer file for use case
-            const mockMulterFile: any = {
+            const uploadedFile: UploadedFile = {
                 buffer: Buffer.from(await file.arrayBuffer()),
                 originalname: file.name,
                 mimetype: file.type,
                 size: file.size,
             };
 
-            // Use FileUseCase for proper abstraction
-            const result = await this.fileUseCase.uploadFile(userId, mockMulterFile, uploadPurpose, fileCategory);
+            const result = await this.fileUseCase.uploadFile(userId, uploadedFile, uploadPurpose, fileCategory);
 
             return this.success(c, result, 'File uploaded successfully');
         } catch (error: any) {
-            console.error('FileController::uploadFile error:', error);
             return this.error(c, error.message, error.statusCode || 500, error);
         }
     }
