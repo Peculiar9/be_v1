@@ -147,7 +147,7 @@ export interface IInstallerEarnings {
     bank_name?: string;
     account_number?: string;
     account_name?: string;
-    paystack_recipient_code?: string;
+    provider_recipient_code?: string;
     
     currency: string;
     created_at: string;

@@ -6,7 +6,7 @@ import { TransactionType, TransactionStatus, RelatedEntityType } from "../Interf
 
 /**
  * Transaction Entity - Provider Agnostic
- * Stores payment transactions from any payment provider (Paystack, Stripe, etc.)
+ * Stores payment transactions from any payment provider.
  * Provider-specific data stored in metadata field
  */
 @CompositeIndex(['user_id', 'transaction_id'])
@@ -39,8 +39,8 @@ export class Transaction implements ITransaction {
     @Column('VARCHAR(50) NOT NULL')
     public type: TransactionType | string;
 
-    @Column('DECIMAL(10,2) NOT NULL')
-    public amount: number;
+    @Column('BIGINT NOT NULL')
+    public amountMinor: number;
 
     @Column('VARCHAR(3) DEFAULT \'NGN\'')
     public currency: string;
@@ -70,20 +70,16 @@ export class Transaction implements ITransaction {
     public description: string;
 
     /**
-     * Metadata field for provider-specific data
-     * Examples:
-     * - Paystack: { paystack_reference, paystack_access_code, paystack_authorization_code }
-     * - Stripe: { stripe_payment_intent_id, stripe_charge_id }
-     * - Flutterwave: { flw_ref, tx_ref }
+     * Metadata field for provider-specific data.
      */
     @Column('JSONB DEFAULT NULL')
-    public metadata?: Record<string, any>;
+    public metadata?: Record<string, unknown>;
 
     @Column('TEXT DEFAULT NULL')
     public failure_reason?: string;
 
-    @Column('DECIMAL(10,2) DEFAULT NULL')
-    public refunded_amount?: number;
+    @Column('BIGINT DEFAULT NULL')
+    public refundedAmountMinor?: number;
 
     @Column('TIMESTAMP WITH TIME ZONE DEFAULT NULL')
     public refunded_at?: string;
@@ -109,79 +105,55 @@ export class Transaction implements ITransaction {
      * Create a new transaction
      */
     static async create(data: Partial<ITransaction>): Promise<Transaction> {
-        try {
-            const transaction = new Transaction({
-                ...data,
-                transaction_id: data.transaction_id || Transaction.generateTransactionId(),
-                currency: data.currency || 'NGN',
-                status: data.status || TransactionStatus.PENDING,
-            });
+        const transaction = new Transaction({
+            ...data,
+            transaction_id: data.transaction_id || Transaction.generateTransactionId(),
+            currency: data.currency || 'NGN',
+            status: data.status || TransactionStatus.PENDING,
+        });
 
-            await transaction.validate();
-            return transaction;
-        } catch (error: any) {
-            console.error('Transaction creation error:', {
-                message: error.message,
-                stack: error.stack
-            });
-            throw error;
-        }
+        await transaction.validate();
+        return transaction;
     }
 
     /**
      * Update transaction
      */
     static async update(existingTransaction: ITransaction, updates: Partial<ITransaction>): Promise<Partial<ITransaction>> {
-        try {
-            const updatedData: Partial<ITransaction> = {
-                _id: existingTransaction._id,
-                ...updates,
-                updated_at: new Date().toISOString()
-            };
+        const updatedData: Partial<ITransaction> = {
+            _id: existingTransaction._id,
+            ...updates,
+            updated_at: new Date().toISOString()
+        };
 
-            const transaction = new Transaction(updatedData);
-            await transaction.validateForUpdate();
-            return updatedData;
-        } catch (error: any) {
-            console.error('Transaction update error:', {
-                message: error.message,
-                stack: error.stack
-            });
-            throw error;
-        }
+        const transaction = new Transaction(updatedData);
+        await transaction.validateForUpdate();
+        return updatedData;
     }
 
     /**
      * Create a refund transaction
      */
-    static createRefund(originalTransaction: ITransaction, refundAmount: number, reason?: string): Transaction {
-        try {
-            const refundData: Partial<ITransaction> = {
-                transaction_id: Transaction.generateTransactionId(),
-                user_id: originalTransaction.user_id,
-                related_entity_type: originalTransaction.related_entity_type,
-                related_entity_id: originalTransaction.related_entity_id,
-                type: TransactionType.REFUND,
-                amount: refundAmount,
-                currency: originalTransaction.currency,
-                status: TransactionStatus.PENDING,
-                description: `Refund for transaction ${originalTransaction.transaction_id}`,
-                metadata: {
-                    original_transaction_id: originalTransaction._id,
-                    original_transaction_ref: originalTransaction.transaction_id,
-                    refund_reason: reason,
-                    ...originalTransaction.metadata
-                }
-            };
+    static createRefund(originalTransaction: ITransaction, refundAmountMinor: number, reason?: string): Transaction {
+        const refundData: Partial<ITransaction> = {
+            transaction_id: Transaction.generateTransactionId(),
+            user_id: originalTransaction.user_id,
+            related_entity_type: originalTransaction.related_entity_type,
+            related_entity_id: originalTransaction.related_entity_id,
+            type: TransactionType.REFUND,
+            amountMinor: refundAmountMinor,
+            currency: originalTransaction.currency,
+            status: TransactionStatus.PENDING,
+            description: `Refund for transaction ${originalTransaction.transaction_id}`,
+            metadata: {
+                original_transaction_id: originalTransaction._id,
+                original_transaction_ref: originalTransaction.transaction_id,
+                refund_reason: reason,
+                ...originalTransaction.metadata
+            }
+        };
 
-            return new Transaction(refundData);
-        } catch (error: any) {
-            console.error('Refund transaction creation error:', {
-                message: error.message,
-                stack: error.stack
-            });
-            throw error;
-        }
+        return new Transaction(refundData);
     }
 
     /**
@@ -213,7 +185,7 @@ export class Transaction implements ITransaction {
             throw new ValidationError('Transaction type is required');
         }
 
-        if (this.amount === undefined || this.amount <= 0) {
+        if (this.amountMinor === undefined || this.amountMinor <= 0) {
             throw new ValidationError('Amount must be greater than zero');
         }
 
@@ -244,7 +216,7 @@ export class Transaction implements ITransaction {
      * Validate transaction for update
      */
     private async validateForUpdate(): Promise<void> {
-        if (this.amount !== undefined && this.amount <= 0) {
+        if (this.amountMinor !== undefined && this.amountMinor <= 0) {
             throw new ValidationError('Amount must be greater than zero');
         }
 
