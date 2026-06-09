@@ -25,7 +25,6 @@ interface DatabaseConfig {
 }
 
 const getSSLConfig = (env: Environment): SSLConfig | boolean => {
-  console.log("getSSLConfig called with env: ", env);
   switch (env) {
     case 'production':
       return {
@@ -50,7 +49,6 @@ const getSSLConfig = (env: Environment): SSLConfig | boolean => {
 export const getDatabaseConfig = (): DatabaseConfig => {
   const nodeEnv = (EnvironmentConfig.get('NODE_ENV', 'test')) as Environment;
   const dbHost = EnvironmentConfig.get('DB_HOST');
-  console.log("DatabaseConfig nodeEnv: ", nodeEnv);
   const config: DatabaseConfig = {
     user: EnvironmentConfig.get('DB_USER', 'postgres'),
     password: EnvironmentConfig.get('DB_PASSWORD', ''),
@@ -67,10 +65,7 @@ export const getDatabaseConfig = (): DatabaseConfig => {
 
   // Build connection string for non-local environments
   if (nodeEnv !== 'development') {
-    const sslMode = nodeEnv === 'production' ? 'verify-full' : 'prefer';
-    console.log("sslMode: ", sslMode);
     config.connectionString = `postgresql://${config.user}:${config.password}@${config.host}:${config.port}/${config.database}`;
-    // ?sslmode=${sslMode}`;
   }
 
   return config;

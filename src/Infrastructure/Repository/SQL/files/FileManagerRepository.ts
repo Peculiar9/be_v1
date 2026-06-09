@@ -5,6 +5,7 @@ import type { IFileManager } from '@Core/Application/Interface/Entities/file-man
 import { TableNames } from '@Core/Application/Enums/TableNames';
 import { FileManager } from '@Core/Application/Entities/FileManager';
 import { Console, LogLevel } from '../../../Utils/Console';
+import { DatabaseError, ValidationError } from '@Core/Application/Error/AppError';
 
 @injectable()
 export class FileManagerRepository extends BaseRepository<IFileManager> {
@@ -15,7 +16,7 @@ export class FileManagerRepository extends BaseRepository<IFileManager> {
 
     async findById(id: string): Promise<IFileManager | null> {
         const result = await this.executeQuery<IFileManager>(
-            `SELECT * FROM ${this.tableName} WHERE id = $1`,
+            `SELECT * FROM ${this.tableName} WHERE _id = $1`,
             [id]
         );
         return result.rows[0] as unknown as IFileManager || null;
@@ -45,15 +46,8 @@ export class FileManagerRepository extends BaseRepository<IFileManager> {
             VALUES (${placeholders.join(', ')})
             RETURNING *
         `;
-
-        console.log("Create FileManager Query: ", {query})
-        console.log("Create FileManager Values: ", {values})
         const result = await this.executeQuery<IFileManager>(query, values);
         return result.rows[0] as unknown as IFileManager;
-    }
-
-    async executeRawQuery(query: string, params: any[]): Promise<any> {
-        return this.executeQuery(query, params);
     }
 
     async count(condition?: Partial<IFileManager>): Promise<number> {
@@ -63,13 +57,13 @@ export class FileManagerRepository extends BaseRepository<IFileManager> {
                 `SELECT COUNT(*) as count FROM ${this.tableName} ${whereClause}`,
                 values
             );
-            return parseInt((result.rows[0] as any).count, 10);
+            return parseInt((result.rows[0] as { count: string }).count, 10);
         }
 
         const result = await this.executeQuery<{ count: string }>(
             `SELECT COUNT(*) as count FROM ${this.tableName}`
         );
-        return parseInt((result.rows[0] as any).count, 10);
+        return parseInt((result.rows[0] as { count: string }).count, 10);
     }
 
     async bulkCreate(entities: IFileManager[]): Promise<IFileManager[]> {
@@ -92,7 +86,7 @@ export class FileManagerRepository extends BaseRepository<IFileManager> {
 
         const updates = await Promise.all(
             entities.map(entity => {
-                if (!entity._id) throw new Error('Entity ID is required for bulk update');
+                if (!entity._id) throw new ValidationError('Entity ID is required for bulk update');
                 return this.update(entity._id, entity);
             })
         );
@@ -137,13 +131,13 @@ export class FileManagerRepository extends BaseRepository<IFileManager> {
 
     private getBulkEntityColumns(entities: IFileManager[]): {
         columns: string[];
-        bulkValues: any[];
+        bulkValues: unknown[];
         bulkPlaceholders: string[];
     } {
         const firstEntity = entities[0];
         const { columns } = this.getEntityColumns(firstEntity);
         
-        const bulkValues: any[] = [];
+        const bulkValues: unknown[] = [];
         const bulkPlaceholders: string[] = [];
         
         entities.forEach((entity, entityIndex) => {
@@ -188,10 +182,14 @@ export class FileManagerRepository extends BaseRepository<IFileManager> {
                 _id,
                 entity
             });
-            throw new Error(`Failed to update file manager: ${error.message}`);
+            throw new DatabaseError(`Failed to update file manager: ${error.message}`);
         }
     }
-    delete(_id: string): Promise<boolean> {
-        throw new Error('Method not implemented.');
+    async delete(_id: string): Promise<boolean> {
+        const result = await this.executeQuery(
+            `DELETE FROM ${this.tableName} WHERE _id = $1`,
+            [_id]
+        );
+        return (result.rowCount ?? 0) > 0;
     }
 }
