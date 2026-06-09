@@ -1,5 +1,4 @@
 import { injectable, inject } from 'inversify';
-// @ts-ignore
 import cloudinary from 'cloudinary';
 import { TYPES } from '@Core/Types/Constants';
 import { 
@@ -10,7 +9,8 @@ import {
     ImageTransformation,
     MediaFileDetails
 } from '@Core/Application/Interface/Services/IMediaService';
-import { ValidationError } from '@Core/Application/Error/AppError';
+import { ServiceError, ValidationError } from '@Core/Application/Error/AppError';
+import { Console, LogLevel } from '../../Utils/Console';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as crypto from 'crypto';
@@ -46,8 +46,6 @@ export class CloudinaryService implements IMediaService {
      */
     async uploadFile(file: Buffer | string, options?: MediaUploadOptions): Promise<MediaUploadResult> {
         try {
-            console.info('Uploading file to Cloudinary');
-            
             // Prepare upload options
             const uploadOptions: any = {
                 resource_type: options?.resourceType || 'auto',
@@ -102,13 +100,13 @@ export class CloudinaryService implements IMediaService {
                 throw new ValidationError('Invalid file format. Expected Buffer or string.');
             }
 
-            console.info(`File uploaded successfully to Cloudinary: ${uploadResult.public_id}`);
-            
             // Map Cloudinary result to our interface
             return this.mapCloudinaryResultToMediaUploadResult(uploadResult);
         } catch (error: any) {
-            console.error('Failed to upload file to Cloudinary:', error);
-            throw new Error(`Failed to upload file: ${error.message}`);
+            if (error instanceof ValidationError) {
+                throw error;
+            }
+            throw new ServiceError(`Failed to upload file: ${error.message}`);
         }
     }
 
@@ -120,13 +118,10 @@ export class CloudinaryService implements IMediaService {
      */
     async uploadMultipleFiles(files: (Buffer | string)[], options?: MediaUploadOptions): Promise<MediaUploadResult[]> {
         try {
-            console.info(`Uploading ${files.length} files to Cloudinary`);
-            
             const uploadPromises = files.map(file => this.uploadFile(file, options));
             return await Promise.all(uploadPromises);
         } catch (error: any) {
-            console.error('Failed to upload multiple files to Cloudinary:', error);
-            throw new Error(`Failed to upload multiple files: ${error.message}`);
+            throw new ServiceError(`Failed to upload multiple files: ${error.message}`);
         }
     }
 
@@ -137,12 +132,9 @@ export class CloudinaryService implements IMediaService {
      */
     async deleteFile(publicId: string): Promise<MediaDeletionResult> {
         try {
-            console.info(`Deleting file from Cloudinary: ${publicId}`);
-            
             const result = await this.cloudinary.uploader.destroy(publicId);
             
             const success = result.result === 'ok';
-            console.info(`File deletion ${success ? 'successful' : 'failed'}: ${publicId}`);
             
             return {
                 publicId,
@@ -151,7 +143,6 @@ export class CloudinaryService implements IMediaService {
                 statusCode: success ? 200 : 400
             };
         } catch (error: any) {
-            console.error(`Failed to delete file ${publicId} from Cloudinary:`, error);
             return {
                 publicId,
                 success: false,
@@ -169,16 +160,12 @@ export class CloudinaryService implements IMediaService {
      */
     async getTransformedUrl(publicId: string, transformations: ImageTransformation): Promise<string> {
         try {
-            console.info(`Generating transformed URL for image: ${publicId}`);
-            
             const options = this.formatTransformation(transformations);
             const url = this.cloudinary.url(publicId, options);
             
-            console.info(`Generated transformed URL for image: ${publicId}`);
             return url;
         } catch (error: any) {
-            console.error(`Failed to generate transformed URL for image ${publicId}:`, error);
-            throw new Error(`Failed to generate transformed URL: ${error.message}`);
+            throw new ServiceError(`Failed to generate transformed URL: ${error.message}`);
         }
     }
 
@@ -189,8 +176,6 @@ export class CloudinaryService implements IMediaService {
      */
     async getFileDetails(publicId: string): Promise<MediaFileDetails> {
         try {
-            console.info(`Getting file details from Cloudinary: ${publicId}`);
-            
             const result = await this.cloudinary.api.resource(publicId);
             
             return {
@@ -224,8 +209,7 @@ export class CloudinaryService implements IMediaService {
                 };
             }
             
-            console.error(`Failed to get file details for ${publicId} from Cloudinary:`, error);
-            throw new Error(`Failed to get file details: ${error.message}`);
+            throw new ServiceError(`Failed to get file details: ${error.message}`);
         }
     }
 
@@ -319,10 +303,13 @@ export class CloudinaryService implements IMediaService {
      * @param filePath Path to the temporary file
      */
     private async deleteTempFile(filePath: string): Promise<void> {
-        return new Promise((resolve, reject) => {
+        return new Promise((resolve) => {
             fs.unlink(filePath, (err) => {
                 if (err) {
-                    console.warn(`Failed to delete temporary file ${filePath}: ${err.message}`);
+                    Console.write('Failed to delete temporary Cloudinary upload file', LogLevel.WARNING, {
+                        filePath,
+                        error: err.message
+                    });
                 }
                 resolve();
             });

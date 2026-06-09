@@ -1,7 +1,7 @@
 import * as bcrypt from 'bcryptjs';
 import * as crypto from 'crypto';
 import CryptoService from '../Services/CryptoService';
-import { EnvironmentConfig } from '@Infrastructure/Config/EnvironmentConfig';
+import { ValidationError } from '@Core/Application/Error/AppError';
 
 export class UtilityService {
     private static readonly OTP_LENGTH = 6;
@@ -31,10 +31,6 @@ export class UtilityService {
     }
 
     static async verifyOTP(plainOTP: string, hashedOTP: string): Promise<boolean> {
-        // In non-production environments, '1234' is always valid
-        if (!EnvironmentConfig.isProduction() && plainOTP === '1234') {
-            return true;
-        }
         return await bcrypt.compare(plainOTP, hashedOTP);
     }
 
@@ -94,10 +90,10 @@ export class UtilityService {
 
     static async hashPassword(password: string): Promise<{ hash: string; salt: string; }> {
         if (password.length < this.MIN_PASSWORD_LENGTH) {
-            throw new Error('Password is too short');
+            throw new ValidationError('Password is too short');
         }
         if (password.length > this.MAX_PASSWORD_LENGTH) {
-            throw new Error('Password is too long');
+            throw new ValidationError('Password is too long');
         }
         const salt = await bcrypt.genSalt(this.PASSWORD_HASH_ROUNDS);
         const hash = await bcrypt.hash(password, salt);

@@ -4,7 +4,7 @@ import type { IUserProfileService } from "@Core/Application/Interface/Services/I
 import { UserResponseDTO, UpdateUserDTO } from "@Core/Application/DTOs/UserDTO";
 import type { IUser } from "@Core/Application/Interface/Entities/auth-and-user/IUser";
 import { UserRepository } from "../Repository/SQL/users/UserRepository";
-import { TransactionManager } from "../Repository/SQL/Abstractions/TransactionManager";
+import { TransactionManager } from "peculiar-orm";
 import { Console, LogLevel } from "../Utils/Console";
 import { AppError, ValidationError } from "@Core/Application/Error/AppError";
 import { ResponseMessage } from "@Core/Application/Response/ResponseFormat";
@@ -14,6 +14,7 @@ import { BaseService } from "./base/BaseService";
 import { AuthHelpers } from "./helpers/AuthHelpers";
 import { TokenService } from "./TokenService";
 import { VerificationRepository } from "../Repository/SQL/auth/VerificationRepository";
+import type { UploadedFile } from "@Core/Application/Types/UploadedFile";
 
 @injectable()
 export class UserProfileService extends BaseService implements IUserProfileService {
@@ -56,6 +57,9 @@ export class UserProfileService extends BaseService implements IUserProfileServi
                 // location: dto.location,
                 password: dto.password
             });
+            if (!updatedUser) {
+                throw new ValidationError(ResponseMessage.USER_NOT_FOUND_MESSAGE);
+            }
 
             if (transactionSuccessfullyStarted) {
                 await this.commitTransaction();
@@ -109,7 +113,7 @@ export class UserProfileService extends BaseService implements IUserProfileServi
         }
     }
 
-    async updateProfileImage(image: Express.Multer.File, user: IUser): Promise<UserResponseDTO> {
+    async updateProfileImage(image: UploadedFile, user: IUser): Promise<UserResponseDTO> {
         let transactionSuccessfullyStarted = false;
         try {
             transactionSuccessfullyStarted = await this.beginTransaction();
@@ -129,6 +133,9 @@ export class UserProfileService extends BaseService implements IUserProfileServi
             const updatedUser = await this.userRepository.update(user._id as string, {
                 profile_image: uploadResult.file_url
             });
+            if (!updatedUser) {
+                throw new ValidationError(ResponseMessage.USER_NOT_FOUND_MESSAGE);
+            }
 
             if (transactionSuccessfullyStarted) {
                 await this.commitTransaction();
@@ -168,6 +175,9 @@ export class UserProfileService extends BaseService implements IUserProfileServi
                 status: UserStatus.DELETED,
                 updated_at: new Date().toISOString()
             });
+            if (!updatedUser) {
+                throw new ValidationError(ResponseMessage.USER_NOT_FOUND_MESSAGE);
+            }
 
             if (transactionSuccessfullyStarted) {
                 await this.commitTransaction();

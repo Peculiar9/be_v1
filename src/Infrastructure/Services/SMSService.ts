@@ -5,6 +5,8 @@ import { inject, injectable } from "inversify";
 import { SMSType } from "@Core/Application/Enums/SMSType";
 import type { IAWSHelper } from "@Core/Application/Interface/Services/IAWSHelper";
 import type { ITwilioService, TwilioVerificationOptions } from "@Core/Application/Interface/Services/ITwilioService";
+import { ServiceError, ValidationError } from "@Core/Application/Error/AppError";
+import { Console, LogLevel } from "../Utils/Console";
 
 @injectable()
 export class SMSService implements ISMSService {
@@ -20,10 +22,8 @@ export class SMSService implements ISMSService {
      */
     async verifyOTP(data: SMSData): Promise<any> {
         try {
-            console.log("SMSService::verifyOTP => Verifying OTP code", { recipient: data.recipient });
-
             if (!data.recipient || !data.message) {
-                throw new Error("Phone number and verification code are required");
+                throw new ValidationError("Phone number and verification code are required");
             }
 
             // The message field contains the verification code
@@ -31,8 +31,6 @@ export class SMSService implements ISMSService {
                 data.recipient,
                 data.message
             );
-
-            console.log("SMSService::verifyOTP => Verification result", verificationResult);
 
             return {
                 valid: verificationResult.valid,
@@ -42,8 +40,10 @@ export class SMSService implements ISMSService {
                     : "Invalid or expired verification code"
             };
         } catch (error: any) {
-            console.error("SMSService::verifyOTP => Error verifying OTP", error);
-            throw new Error(`Failed to verify OTP: ${error.message}`);
+            if (error instanceof ValidationError) {
+                throw error;
+            }
+            throw new ServiceError(`Failed to verify OTP: ${error.message}`);
         }
     }
 
@@ -54,10 +54,8 @@ export class SMSService implements ISMSService {
      */
     async sendOTPSMS(data: SMSData): Promise<any> {
         try {
-            console.log("SMSService::sendOTPSMS => Sending OTP SMS", { recipient: data.recipient });
-
             if (!data.recipient) {
-                throw new Error("Phone number is required");
+                throw new ValidationError("Phone number is required");
             }
 
             // Configure verification options
@@ -71,11 +69,6 @@ export class SMSService implements ISMSService {
                 verificationOptions
             );
 
-            console.log("SMSService::sendOTPSMS => OTP SMS sent", {
-                recipient: data.recipient,
-                status: verificationResult.status
-            });
-
             return {
                 success: verificationResult.valid,
                 status: verificationResult.status,
@@ -85,19 +78,18 @@ export class SMSService implements ISMSService {
                 message: "OTP SMS sent successfully"
             };
         } catch (error: any) {
-            console.error("SMSService::sendOTPSMS => Error sending OTP SMS", error);
-            throw new Error(`Failed to send OTP SMS: ${error.message}`);
+            if (error instanceof ValidationError) {
+                throw error;
+            }
+            throw new ServiceError(`Failed to send OTP SMS: ${error.message}`);
         }
     }
 
     async sendVerificationSMS(data: SMSData): Promise<any> {
         try {
-            console.log("Gotten to the send SMS verification part: ");
-            const smsResult = await this._awsHelper.sendSMS(data, SMSType.SINGLE);
-            console.log("SMSService::sendVerficationSMS => ", { smsResult });
-            return smsResult;
+            return await this._awsHelper.sendSMS(data, SMSType.SINGLE);
         } catch (error: any) {
-            console.log("SMSServices::sendVerificationSMS() => ", error.message);
+            throw new ServiceError(`Failed to send verification SMS: ${error.message}`);
         }
     }
 
@@ -112,14 +104,14 @@ export class SMSService implements ISMSService {
             }
 
             // If Twilio fails, fall back to AWS SNS
-            console.log("Twilio SMS failed, falling back to AWS SNS");
+            Console.write("Twilio SMS failed, falling back to AWS SNS", LogLevel.WARNING, { phoneNumber });
             const data = {
                 recipient: phoneNumber,
                 message: message
             }
             return await this._awsHelper.sendSMS(data, SMSType.SINGLE);
         } catch (error: any) {
-            throw new Error(error.message);
+            throw new ServiceError(error.message);
         }
     }
 }

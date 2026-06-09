@@ -4,6 +4,7 @@ import { BucketName } from "../../Enums/BucketName";
 import { ComparedFace } from "@aws-sdk/client-rekognition";
 import { PublishCommandOutput } from "@aws-sdk/client-sns";
 import { CompareFacesCommandOutput } from "@aws-sdk/client-rekognition";
+import type { UploadedFile } from "../../Types/UploadedFile";
 export interface IAWSHelper {
     sendVerificationEmail(to: string, data: EmailData): Promise<boolean>;
     sendWaitlistEmail(to: string, data: EmailData): Promise<boolean>;
@@ -14,11 +15,11 @@ export interface IAWSHelper {
     sendPasswordResetOTPEmail(to: string, data: EmailData): Promise<boolean>;
     sendEmail(to: string, subject: string, body: string): Promise<boolean>;
     sendSMS(data: SMSData, smsType: string): Promise<PublishCommandOutput | void>;
-    licenseDetailsUpload(file: any, fileKey: string): Promise<any>;
-    carImageUpload(file: any, fileKey: string): Promise<any>;
-    profileImageUpload(file: any, fileKey: string): Promise<any>;
-    selfieUpload(file: Express.Multer.File, fileKey: string): Promise<any>;
-    batchImageUpload(files: any[], fileKey: string[], bucketName: BucketName, directoryPath?: string): Promise<string[]>;
+    licenseDetailsUpload(file: UploadedFile | Buffer | string, fileKey: string): Promise<void>;
+    carImageUpload(file: UploadedFile, fileKey: string): Promise<string>;
+    profileImageUpload(file: UploadedFile, fileKey: string): Promise<string>;
+    selfieUpload(file: UploadedFile, fileKey: string): Promise<string>;
+    batchImageUpload(files: Array<UploadedFile | Buffer | string>, fileKey: string[], bucketName: BucketName, directoryPath?: string): Promise<string[]>;
     batchImageDelete(fileKeys: string[], bucketName: BucketName, directoryPath?: string): Promise<string[]>;
     generatePresignedUploadUrl(bucketName: string, key: string, contentType: string, expiresIn?: number): Promise<string>;
     deleteFile(bucketName: string, key: string): Promise<void>;

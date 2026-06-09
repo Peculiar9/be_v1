@@ -2,14 +2,15 @@ import { inject, injectable } from 'inversify';
 import { TYPES } from '../../Types/Constants';
 import type { IAccountUseCase } from '../Interface/UseCases/IAccountUseCase';
 import { VerifyEmailDTO, IEmailVerificationResponse } from '../DTOs/AuthDTO';
-import { UserResponseDTO, UpdateUserDTO, CreateUserDTO, UserProfileResponseDTO } from '../DTOs/UserDTO';
+import { UserResponseDTO, UpdateUserDTO, CreateUserDTO } from '../DTOs/UserDTO';
 import { ResponseMessage } from '../Response/ResponseFormat';
 import { LoginResponseDTO } from '../DTOs/AuthDTO';
 import type { IUser } from '../Interface/Entities/auth-and-user/IUser';
-import { AppError, ValidationError, UnprocessableEntityError, ServiceError } from '../Error/AppError';
+import { ValidationError, UnprocessableEntityError, ServiceError } from '../Error/AppError';
 import { Console } from '@Infrastructure/Utils/Console';
 import type { IRegistrationService } from '../Interface/Services/IRegistrationService';
 import type { IUserProfileService } from '../Interface/Services/IUserProfileService';
+import type { UploadedFile } from '../Types/UploadedFile';
 
 @injectable()
 export class AccountUseCase implements IAccountUseCase {
@@ -18,7 +19,7 @@ export class AccountUseCase implements IAccountUseCase {
         @inject(TYPES.UserProfileService) private readonly _userProfileService: IUserProfileService,
     ) { }
 
-    async updateProfileImage(image: Express.Multer.File, user: IUser): Promise<UserResponseDTO> {
+    async updateProfileImage(image: UploadedFile, user: IUser): Promise<UserResponseDTO> {
         return await this._userProfileService.updateProfileImage(image, user);
     }
 

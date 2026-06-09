@@ -49,10 +49,6 @@ export class GoogleService extends BaseApiService implements IGoogleService {
 
             return response;
         } catch (error: any) {
-            console.error('GoogleService::getUserProfile(): ', {
-                message: error.message,
-                stack: error.stack
-            });
             throw new AuthorizationError('Failed to get Google access token: ' + error.message);
         }
     }
@@ -70,10 +66,6 @@ export class GoogleService extends BaseApiService implements IGoogleService {
 
             return response;
         } catch (error: any) {
-            console.error('GoogleService::getUserProfile(): ', {
-                message: error.message,
-                stack: error.stack
-            });
             throw new AuthorizationError('Failed to get Google user profile: ' + error.message);
         }
     }

@@ -32,7 +32,7 @@ export interface IUser{
     location: ILocation;
     user_criteria?: string; //new, loyal, more like badges for users
     host_badges: string; // All-star e.t.c one has to determine which these would be and also, put them in an enum
-    stripe_id: string;
+    payment_customer_id: string;
     billing_info: IBillingInfo;
     hosted_cars: (string | null | undefined)[];
     favourite_cars: (string | null | undefined)[]; // ids of cars that the user considers their favourites
