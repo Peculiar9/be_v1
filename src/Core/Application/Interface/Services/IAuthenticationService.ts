@@ -57,6 +57,7 @@ export interface IAuthenticationService {
      * @returns True if password was reset successfully
      */
     resetPassword(token: string, newPassword: string): Promise<boolean>;
+    changePassword(userId: string, currentPassword: string, newPassword: string): Promise<boolean>;
     
     /**
      * Initiates password reset process using OTP

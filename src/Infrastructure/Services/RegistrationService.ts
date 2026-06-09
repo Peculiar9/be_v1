@@ -5,11 +5,10 @@ import { UserResponseDTO } from "@Core/Application/DTOs/UserDTO";
 import { VerifyEmailDTO, LoginResponseDTO } from "@Core/Application/DTOs/AuthDTO";
 import { UserRepository } from "../Repository/SQL/users/UserRepository";
 import { VerificationRepository } from "../Repository/SQL/auth/VerificationRepository";
-import { TransactionManager } from "../Repository/SQL/Abstractions/TransactionManager";
+import { TransactionManager } from "peculiar-orm";
 import { Console } from "../Utils/Console";
 import { AppError, ValidationError, UnprocessableEntityError, ConflictError, AuthenticationError, InternalServerError } from "@Core/Application/Error/AppError";
 import { ResponseMessage } from '@Core/Application/Response/ResponseFormat';
-import { EnvironmentConfig } from '../Config/EnvironmentConfig';
 import { CryptoService } from "@Core/Services/CryptoService";
 import { UtilityService } from "@Core/Services/UtilityService";
 import { VerificationStatus } from "@Core/Application/Interface/Entities/auth-and-user/IUser";
@@ -61,30 +60,32 @@ export class RegistrationService extends BaseService implements IRegistrationSer
                 throw new UnprocessableEntityError(ResponseMessage.INVALID_VERIFICATION);
             }
 
-            if (this.authHelpers.isVerificationExpired(verification.otp.expiry!)) {
+            const otpState = verification.otp;
+            if (!otpState) {
+                throw new UnprocessableEntityError(ResponseMessage.INVALID_VERIFICATION);
+            }
+
+            if (this.authHelpers.isVerificationExpired(otpState.expiry)) {
                 throw new UnprocessableEntityError(ResponseMessage.INVALID_VERIFICATION_CODE);
             }
 
-            if (verification.attempts >= 3) {
+            if (otpState.attempts >= 3) {
                 throw new UnprocessableEntityError(ResponseMessage.INVALID_VERIFICATION);
             }
 
             const user = await this.userRepository.findById(verification.user_id!);
             if (!user) throw new ValidationError(ResponseMessage.USER_NOT_FOUND_MESSAGE);
 
-            if (!EnvironmentConfig.isProduction() && data.code === '1234') {
-            } else {
-                const hashedCode = await CryptoService.hashString(data.code, user.salt as string);
-                if (hashedCode !== verification.otp.code) {
-                    await this.verificationRepository.incrementAttempts(data.reference);
-                    throw new ValidationError(ResponseMessage.INVALID_VERIFICATION_CODE);
-                }
+            const isCodeValid = CryptoService.verifyHash(data.code, otpState.code, user.salt as string);
+            if (!isCodeValid) {
+                await this.verificationRepository.incrementAttempts(data.reference);
+                throw new ValidationError(ResponseMessage.INVALID_VERIFICATION_CODE);
             }
 
             await this.verificationRepository.update(verification._id as string, {
                 status: VerificationStatus.COMPLETED,
                 otp: {
-                    ...verification.otp,
+                    ...otpState,
                     verified: true,
                     last_attempt: UtilityService.dateToUnix(new Date())
                 }
@@ -93,9 +94,15 @@ export class RegistrationService extends BaseService implements IRegistrationSer
             const updatedUser = await this.userRepository.update(user._id!, {
                 status: UserStatus.ACTIVE,
                 email_verified: true
-            }) as IUser;
+            });
+            if (!updatedUser) {
+                throw new InternalServerError("Failed to update user after email verification");
+            }
 
             const { accessToken, refreshToken } = await this.tokenService.generateTokens(updatedUser);
+            await this.userRepository.update(updatedUser._id as string, {
+                refresh_token: await this.tokenService.hashRefreshToken(refreshToken),
+            });
 
             await this.commitTransaction();
 
@@ -170,16 +177,19 @@ export class RegistrationService extends BaseService implements IRegistrationSer
                 throw new InternalServerError("Failed to create user object");
             }
 
-            userObject.password = await CryptoService.hashString(dto.password, userObject.salt);;
+            userObject.password = await CryptoService.hashString(dto.password, userObject.salt);
 
             const user = await this.userRepository.create(userObject);
             if (!user || !user._id) {
                 throw new InternalServerError("Failed to create user in database");
             }
 
+            const { accessToken, refreshToken } = await this.tokenService.generateTokens(user);
+            await this.userRepository.update(user._id as string, {
+                refresh_token: await this.tokenService.hashRefreshToken(refreshToken),
+            });
             await this.commitTransaction();
 
-            const { accessToken, refreshToken } = await this.tokenService.generateTokens(user);
             const response = this.authHelpers.constructUserObject(user);
             return { accessToken, refreshToken, user: response };
         } catch (error) {

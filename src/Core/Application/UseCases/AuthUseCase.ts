@@ -1,6 +1,6 @@
 import type { IAuthUseCase } from "../Interface/UseCases/IAuthUseCase";
 import { UserRegistrationDTO } from "../DTOs/AuthDTOV2";
-import { ChangePasswordDTO, ForgotPasswordDTO, IEmailVerificationResponse, LoginResponseDTO, RefreshTokenDTO, ResetPasswordDTO, VerifyEmailDTO } from "../DTOs/AuthDTO";
+import { ChangePasswordDTO, ForgotPasswordDTO, IEmailVerificationResponse, RefreshTokenDTO, ResetPasswordDTO, VerifyEmailDTO } from "../DTOs/AuthDTO";
 import { LoginDTO } from "../DTOs/AuthDTO";
 import { TYPES } from "../../Types/Constants";
 import { inject, injectable } from "inversify";
@@ -11,10 +11,8 @@ import type { IUserProfileService } from "../Interface/Services/IUserProfileServ
 import type { IAuthenticationService } from "../Interface/Services/IAuthenticationService";
 import { AuthHelpers } from "@Infrastructure/Services/helpers/AuthHelpers";
 import type { ITwilioEmailService } from "../Interface/Services/ITwilioEmailService";
-import { ValidationError, ServiceError } from "../Error/AppError";
-import { UserStatus } from "../Enums/UserStatus";
-import { Console } from "console";
-import { UtilityService } from "@Core/Services/UtilityService";
+import { AuthenticationError, ValidationError } from "../Error/AppError";
+import type { UploadedFile } from "../Types/UploadedFile";
 
 @injectable()
 export class AuthUseCase implements IAuthUseCase {
@@ -26,14 +24,23 @@ export class AuthUseCase implements IAuthUseCase {
         @inject(TYPES.TwilioEmailService) private readonly _twilioEmailService: ITwilioEmailService,
     ) { }
 
-    forgotPassword(dto: ForgotPasswordDTO): Promise<{ message: string; email: string; }> {
-        throw new Error("Method not implemented.");
+    async forgotPassword(dto: ForgotPasswordDTO): Promise<{ message: string; email: string; }> {
+        await this._authenticationService.requestPasswordReset(dto.email);
+        return { message: "Password reset instructions sent", email: dto.email };
     }
-    resetPassword(dto: ResetPasswordDTO): Promise<{ message: string; }> {
-        throw new Error("Method not implemented.");
+    async resetPassword(dto: ResetPasswordDTO): Promise<{ message: string; }> {
+        if (dto.password !== dto.confirmPassword) {
+            throw new ValidationError("Password confirmation does not match");
+        }
+        await this._authenticationService.resetPassword(dto.token, dto.password);
+        return { message: "Password reset successfully" };
     }
-    changePassword(dto: ChangePasswordDTO, user: IUser): Promise<{ message: string; }> {
-        throw new Error("Method not implemented.");
+    async changePassword(dto: ChangePasswordDTO, user: IUser): Promise<{ message: string; }> {
+        if (dto.newPassword !== dto.confirmPassword) {
+            throw new ValidationError("Password confirmation does not match");
+        }
+        await this._authenticationService.changePassword(user._id as string, dto.currentPassword, dto.newPassword);
+        return { message: "Password changed successfully" };
     }
     getCurrentUser(user: IUser): Promise<UserResponseDTO> {
         return Promise.resolve(this._authHelpers.constructUserObject(user));
@@ -69,16 +76,17 @@ export class AuthUseCase implements IAuthUseCase {
         const response = await this._authenticationService.authenticate(dto.identifier, dto.password);
 
         if (!response) {
-            throw new Error('Authentication failed');
+            throw new AuthenticationError('Authentication failed');
         }
         return { accessToken: response.accessToken, refreshToken: response.refreshToken, user: response.user };
     }
 
-    async updateProfileImage(image: Express.Multer.File, user: IUser): Promise<UserResponseDTO> {
+    async updateProfileImage(image: UploadedFile, user: IUser): Promise<UserResponseDTO> {
         return await this._userProfileService.updateProfileImage(image, user);
     }
 
-    async logout(): Promise<UserResponseDTO> {
-        return {} as UserResponseDTO;
+    async logout(user: IUser): Promise<{ message: string }> {
+        await this._authenticationService.revokeRefreshToken(user._id as string);
+        return { message: "Logged out successfully" };
     }
 }

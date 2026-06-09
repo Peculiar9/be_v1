@@ -2,7 +2,7 @@ import { UserRole } from '../Enums/UserRole';
 import { LoginType } from '../Enums/LoginType';
 import type { ILocation, IUser } from '../Interface/Entities/auth-and-user/IUser';
 import { UserResponseDTO } from './UserDTO';
-import { 
+import {
   IsEmail, 
   IsNotEmpty, 
   IsString, 
@@ -14,6 +14,8 @@ import {
   IsObject
 } from 'class-validator';
 import { Expose } from 'class-transformer';
+import type { UploadedFile } from '../Types/UploadedFile';
+import { ValidationError } from '../Error/AppError';
 
 
 export interface LoginResponseDTO {
@@ -30,7 +32,6 @@ export interface UserCreateResponseDTO {
     result: IUser
   ): UserCreateResponseDTO | undefined {
     try {
-        console.log({result})
       return {
         user: {
           id: result._id || '',
@@ -50,11 +51,7 @@ export interface UserCreateResponseDTO {
         }
       };
     } catch (error: any) {
-      console.error('Error creating UserCreateResponseDTO:', {
-        message: error.message,
-        stack: error.stack
-      });
-      return undefined;
+      throw new ValidationError(`Failed to create user response DTO: ${error.message}`);
     }
   }
 
@@ -241,7 +238,7 @@ export class RegisterUserDTO {
     @Length(8, 255, { message: 'Password must be between 8 and 255 characters long' })
     password: string;
 
-    image?: Express.Multer.File; //multer file
+    image?: UploadedFile;
 
     // @Expose()
     // @IsOptional()
