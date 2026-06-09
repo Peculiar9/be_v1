@@ -1,23 +1,17 @@
-import { Request, Response, NextFunction } from 'express';
 import { injectable } from 'inversify';
 import { Console } from '@Infrastructure/Utils/Console';
+import type { Context } from 'hono';
+import { ResponseHelper } from '@Core/Application/Response/ResponseHelper';
 
 @injectable()
 export class NotFoundMiddleware {
-    public static handleNotFound(req: Request, res: Response, next: NextFunction) {
-        // Log the not found route for monitoring
-        Console.warn(`Route not found: ${req.method} ${req.originalUrl}`, {
-            method: req.method,
-            url: req.originalUrl,
-            ip: req.ip,
-            headers: req.headers,
+    public static handleNotFound(c: Context) {
+        Console.warn(`Route not found: ${c.req.method} ${c.req.path}`, {
+            method: c.req.method,
+            url: c.req.path,
             time: new Date().toISOString()
         });
         
-        return res.status(404).json({
-            success: false,
-            message: `Route not found: ${req.method} ${req.originalUrl}`,
-            data: null
-        });
+        return ResponseHelper.errorMessage(c, `Route not found: ${c.req.method} ${c.req.path}`, 404, 404);
     }
 }

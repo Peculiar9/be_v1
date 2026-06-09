@@ -1,7 +1,6 @@
 import { injectable } from 'inversify';
 import { AxiosHttpClient } from './AxiosHttpClient';
 import type { IHttpClient } from '@Core/Application/Interface/Infrastructure/IHttpClient';
-import type { AxiosRequestConfig } from 'axios';
 
 export interface ApiConfig {
     baseURL: string;
@@ -40,13 +39,6 @@ export class HttpClientFactory {
     private getServiceConfig(serviceName: string): ApiConfig {
         // This could be loaded from environment variables or a configuration file
         const configs: Record<string, ApiConfig> = {
-            'payment-service': {
-                baseURL: process.env.PAYMENT_SERVICE_URL!,
-                timeout: 5000,
-                headers: {
-                    'X-API-Key': process.env.PAYMENT_SERVICE_API_KEY!
-                }
-            },
             'notification-service': {
                 baseURL: process.env.NOTIFICATION_SERVICE_URL!,
                 timeout: 3000

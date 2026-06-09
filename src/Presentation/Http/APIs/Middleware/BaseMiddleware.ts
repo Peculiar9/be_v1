@@ -2,6 +2,7 @@ import type { Context, Next } from 'hono';
 import { ValidationError } from '@Core/Application/Error/AppError';
 import { ResponseMessage } from '@Core/Application/Response/ResponseFormat';
 import { injectable } from 'inversify';
+import { ResponseHelper } from '@Core/Application/Response/ResponseHelper';
 
 @injectable()
 export class BaseMiddleware {
@@ -51,14 +52,7 @@ export class BaseMiddleware {
       if (elapsedTime < rateLimitWindow) {
         if (requestCounts[identifier].count > maxRequests) {
           // Respond with rate limit error and return early.
-          return c.json({
-            success: false,
-            message: ResponseMessage.RATE_LIMIT_ERROR,
-            data: {},
-            error: {
-              code: 12
-            }
-          }, 429);
+          return ResponseHelper.errorMessage(c, ResponseMessage.RATE_LIMIT_ERROR, 429, 12);
         }
       } else {
         // Reset counter if time window has passed.
@@ -82,4 +76,3 @@ export interface RequestCount {
   count: number;
   startTime: number;
 }
-

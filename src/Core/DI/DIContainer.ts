@@ -19,7 +19,6 @@ import { AWSHelper } from '@Infrastructure/Services/external-api-services/AWSHel
 import { VerificationRepository } from '@Infrastructure/Repository/SQL/auth/VerificationRepository';
 import { OTPService } from '@Infrastructure/Services/OTPService';
 import { DatabaseInitializer } from '@Infrastructure/Config/DatabaseInitializer';
-import type { IAuthService } from '../Application/Interface/Services/IAuthService';
 import type { IAuthenticationService } from '../Application/Interface/Services/IAuthenticationService';
 import type { IRegistrationService } from '../Application/Interface/Services/IRegistrationService';
 import type { IUserProfileService } from '../Application/Interface/Services/IUserProfileService';
@@ -31,7 +30,6 @@ import { FileService } from '@Infrastructure/Services/FileService';
 import type { IFileService } from '../Application/Interface/Services/IFileService';
 import type { ISMSService } from '../Application/Interface/Services/ISMSService';
 import type { IOTPService } from '../Application/Interface/Services/IOTPService';
-import { AuthServiceHelper } from '@Infrastructure/Services/helpers/AuthServiceHelper';
 import { AWSFileFormatterHelper } from '@Infrastructure/Services/external-api-services/AWSFileFormatterHelper';
 import type { IAuthUseCase } from '../Application/Interface/UseCases/IAuthUseCase';
 import { AuthUseCase } from '../Application/UseCases/AuthUseCase';
@@ -44,6 +42,9 @@ import type { ITwilioEmailService } from '../Application/Interface/Services/ITwi
 import { TwilioEmailService } from '@Infrastructure/Services/TwilioEmailService';
 import type { IAccountUseCase } from '@Core/Application/Interface/UseCases/IAccountUseCase';
 import { AccountUseCase } from '@Core/Application/UseCases/AccountUseCase';
+import { PaymentTransactionRepository } from '@Infrastructure/Repository/SQL/auth/PaymentTransactionRepository';
+import type { IFileUseCase } from '@Core/Application/Interface/UseCases/IFileUseCase';
+import { FileUseCase } from '@Core/Application/UseCases/FileUseCase';
 
 
 /**
@@ -108,11 +109,10 @@ export class DIContainer {
         container.bind<LinkedAccountsRepository>(TYPES.LinkedAccountsRepository).to(LinkedAccountsRepository).inRequestScope();
         container.bind<FileManagerRepository>(TYPES.FileManagerRepository).to(FileManagerRepository).inRequestScope();
         container.bind<VerificationRepository>(TYPES.VerificationRepository).to(VerificationRepository).inRequestScope();
-        container.bind<AuthServiceHelper>(TYPES.AuthServiceHelper).to(AuthServiceHelper).inRequestScope();
-
         // Use Cases
         container.bind<IAuthUseCase>(TYPES.AuthUseCase).to(AuthUseCase).inRequestScope();
         container.bind<IAccountUseCase>(TYPES.AccountUseCase).to(AccountUseCase).inRequestScope();
+        container.bind<IFileUseCase>(TYPES.FileUseCase).to(FileUseCase).inRequestScope();
         // Middleware
         container.bind<AuthMiddleware>(TYPES.AuthMiddleware).to(AuthMiddleware).inRequestScope();
 
@@ -158,6 +158,8 @@ export class DIContainer {
         container.bind<string>(TYPES.SENDGRID_FROM_EMAIL).toConstantValue(EnvironmentConfig.get('SENDGRID_FROM_EMAIL', `noreply@${APP_NAME}.com`));
         container.bind<ITwilioEmailService>(TYPES.TwilioEmailService).to(TwilioEmailService).inSingletonScope();
 
-        console.log("All dependencies bound!!")
+        // Payment provider selection is intentionally unbound until a concrete adapter is added.
+        container.bind<string>(TYPES.PAYMENT_PROVIDER).toConstantValue(EnvironmentConfig.get('PAYMENT_PROVIDER', 'none'));
+        container.bind<PaymentTransactionRepository>(TYPES.PaymentTransactionRepository).to(PaymentTransactionRepository).inRequestScope();
     }
 }

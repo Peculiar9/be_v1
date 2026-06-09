@@ -4,10 +4,9 @@ export const TYPES = {
     ConnectionPoolManager: Symbol.for("ConnectionPoolManager"),
     UserRepository: Symbol.for('UserRepository'),
 
-    AccountUseCase: Symbol.for('AccountUseCae'),
+    AccountUseCase: Symbol.for('AccountUseCase'),
     AuthUseCase: Symbol.for('AuthUseCase'),
 
-    AuthService: Symbol.for('AuthService'),
     AuthenticationService: Symbol.for('AuthenticationService'),
     RegistrationService: Symbol.for('RegistrationService'),
     UserProfileService: Symbol.for('UserProfileService'),
@@ -20,20 +19,16 @@ export const TYPES = {
     FileService: Symbol.for('FileService'),
 
     AWSHelper: Symbol.for('AWSHelper'),
-    AuthServiceHelper: Symbol.for('AuthServiceHelper'),
     TokenService: Symbol.for('TokenService'),
     BaseService: Symbol.for('BaseService'),
     AuthHelpers: Symbol.for('AuthHelpers'),
     EmailService: Symbol.for('EmailService'),
-    DatabaseInitializer: Symbol.for('DatanaseInitializer'),
+    DatabaseInitializer: Symbol.for('DatabaseInitializer'),
 
     VerificationRepository: Symbol.for('VerificationRepository'),
     FileManagerRepository: Symbol.for('FileManagerRepository'),
     LinkedAccountsRepository: Symbol.for('LinkedAccountsRepository'),
     UserKYCRepository: Symbol.for('UserKYCRepository'),
-
-    PaymentController: Symbol.for('PaymentController'),
-    StripeWebhookController: Symbol.for('StripeWebhookController'),
 
     GOOGLE_CLIENT_ID: Symbol.for('GoogleClientId'),
     GOOGLE_CLIENT_SECRET: Symbol.for('GoogleClientSecret'),
@@ -41,10 +36,10 @@ export const TYPES = {
 
     CryptoService: Symbol.for('CryptoService'),
 
-    // Payment Service
-    PaymentService: Symbol.for('PaymentService'),
-    STRIPE_SECRET_KEY: Symbol.for('STRIPE_SECRET_KEY'),
-    STRIPE_PRE_AUTH_AMOUNT: Symbol.for('STRIPE_PRE_AUTH_AMOUNT'),
+    // Payment provider ports. Bind concrete adapters in project-specific code.
+    PaymentGateway: Symbol.for('PaymentGateway'),
+    PaymentWebhookVerifier: Symbol.for('PaymentWebhookVerifier'),
+    PAYMENT_PROVIDER: Symbol.for('PAYMENT_PROVIDER'),
 
     // Verification and Credentials Repositories
     CertificateRepository: Symbol.for('CertificateRepository'),
@@ -77,8 +72,8 @@ export const TYPES = {
     // Services
     HttpClientFactory: Symbol.for('HttpClientFactory'),
 
-    // Webhooks
-    StripeWebhookService: Symbol.for('StripeWebhookService'),
+    // Repositories
+    PaymentTransactionRepository: Symbol.for('PaymentTransactionRepository'),
 
     // File
     FileUseCase: Symbol.for('FileUseCase'),
@@ -86,10 +81,6 @@ export const TYPES = {
     // Repositories
     NewsletterSubscriptionRepository: Symbol.for('NewsletterSubscriptionRepository'),
 
-
-    // KYC
-    QuickVerifyService: Symbol.for('QuickVerifyService'),
-    VerifyMeService: Symbol.for('VerifyMeService'),
 } as const;
 
 export const APP_VERSION = 'v1';

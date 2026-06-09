@@ -5,124 +5,145 @@ import type { IVerification } from "@Core/Application/Interface/Entities/auth-an
 import CryptoService from "@Core/Services/CryptoService";
 import { UtilityService } from "@Core/Services/UtilityService";
 import { VerificationRepository } from "../Repository/SQL/auth/VerificationRepository";
-import { TransactionManager } from "../Repository/SQL/Abstractions/TransactionManager";
-import { DatabaseIsolationLevel } from "@Core/Application/Enums/DatabaseIsolationLevel";
+import { TransactionManager } from "peculiar-orm";
 import { AppError, AuthenticationError } from "@Core/Application/Error/AppError";
 import { VerificationStatus } from "@Core/Application/Interface/Entities/auth-and-user/IUser";
 import { ResponseMessage } from "@Core/Application/Response/ResponseFormat";
+import { BaseService } from "./base/BaseService";
+
+type OtpValidationResult = {
+    valid: true;
+} | {
+    valid: false;
+    error: AuthenticationError;
+};
 
 @injectable()
-export class OTPService implements IOTPService {
+export class OTPService extends BaseService implements IOTPService {
     constructor(
-        @inject(TYPES.VerificationRepository) private readonly _verificationRepository: VerificationRepository,
-        @inject(TYPES.TransactionManager) private readonly _transactionManager: TransactionManager,
-    ) { }
+        @inject(TYPES.VerificationRepository) private readonly verificationRepository: VerificationRepository,
+        @inject(TYPES.TransactionManager) protected readonly transactionManager: TransactionManager,
+    ) {
+        super(transactionManager);
+    }
 
 
     public async createOtpInstance(otp: string, salt: string): Promise<IVerification> {
         try {
-
-            await this._transactionManager.beginTransaction({
-                isolationLevel: DatabaseIsolationLevel.READ_COMMITTED,
+            return await this.withTransaction(async () => {
+                return await this.verificationRepository.create({
+                    user_id: undefined,
+                    otp: {
+                        code: CryptoService.hashString(otp, salt),
+                        expiry: UtilityService.dateToUnix(new Date(Date.now() + 10 * 60 * 1000)),
+                        attempts: 0,
+                        last_attempt: UtilityService.dateToUnix(new Date()) || null,
+                        verified: false
+                    },
+                    reference: UtilityService.generateUUID()
+                }) as IVerification;
             });
-            const verification = {
-                otp: {
-                    code: CryptoService.hashString(otp, salt),
-                    expiry: UtilityService.dateToUnix(new Date(Date.now() + 10 * 60 * 1000)), //expires in 10mins
-                    attempts: 0,
-                    lastAttempt: UtilityService.dateToUnix(new Date()) || null,
-                    verified: false
-                },
-                reference: UtilityService.generateUUID()
+        } catch (error) {
+            if (error instanceof AppError) {
+                throw error;
             }
-            console.log("OTPService::createOtpInstance() => Verification: ", verification);
-            const result: IVerification = await this._verificationRepository.create({
-                user_id: undefined,
-                otp: {
-                    code: await CryptoService.hashString(otp, salt),
-                    expiry: UtilityService.dateToUnix(new Date(Date.now() + 10 * 60 * 1000)), //expires in 10mins
-                    attempts: 0,
-                    last_attempt: UtilityService.dateToUnix(new Date()) || null,
-                    verified: false
-                },
-                reference: UtilityService.generateUUID()
-            }) as IVerification;
-            await this._transactionManager.commit();
-            return result;
-        } catch (error: any) {
-            console.log("OTPService::createOtpInstance() => Error: ", error.message);
             throw new AppError("Failed to create OTP instance");
         }
     }
 
     public async updateOtpInstance(verificationId: string, otp: string, salt: string): Promise<IVerification> {
-        throw new Error("Method not implemented.");
-    }
-
-    public async validOTP(code: string, token: string, salt: string): Promise<any> {
         try {
-            await this._transactionManager.beginTransaction({
-                isolationLevel: DatabaseIsolationLevel.READ_COMMITTED,
-            });
-
-            // Get verification record by token
-            const verification = await this._verificationRepository.findByToken(token);
-
-            if (!verification) {
-                await this._transactionManager.rollback();
-                throw new AuthenticationError("Verification not found");
-            }
-
-            // Hash the provided code with salt for comparison
-            const hashedToken = CryptoService.hashString(code, salt);
-
-            // Get stored OTP code and expiry
-            const storedOTPCode = verification.otp?.code;
-            const expiryTime = verification.otp?.expiry;
-            const currentTime = Date.now();
-
-            // Check if OTP has expired
-            if (!expiryTime || currentTime > expiryTime) {
-                // Update verification status to expired
-                await this._verificationRepository.updateVerification(verification._id as string, {
-                    status: VerificationStatus.EXPIRED
+            return await this.withTransaction(async () => {
+                const updated = await this.verificationRepository.updateOtpInstance(verificationId, {
+                    code: CryptoService.hashString(otp, salt),
+                    expiry: UtilityService.dateToUnix(new Date(Date.now() + 10 * 60 * 1000)),
+                    attempts: 0,
+                    last_attempt: UtilityService.dateToUnix(new Date()) || null,
+                    verified: false
                 });
-                await this._transactionManager.rollback();
-                throw new AuthenticationError(ResponseMessage.FAILED_PHONE_VERIFICATION_MESSAGE);
-            }
 
-            // Validate OTP code
-            if (!storedOTPCode || hashedToken !== storedOTPCode) {
-                // Update verification attempts
-                const attempts = (verification.otp?.attempts || 0) + 1;
-                await this._verificationRepository.updateVerification(verification._id as string, {
-                    otp: {
-                        ...verification.otp,
-                        attempts,
-                        lastAttempt: currentTime
-                    }
-                });
-                await this._transactionManager.rollback();
-                throw new AuthenticationError("Invalid verification or expired OTP");
-            }
-
-            // Update verification status to verified
-            await this._verificationRepository.updateVerification(verification._id as string, {
-                status: VerificationStatus.VERIFIED,
-                otp: {
-                    ...verification.otp,
-                    verified: true
+                if (!updated) {
+                    throw new AuthenticationError("Verification not found");
                 }
-            });
 
-            await this._transactionManager.commit();
-            return true;
+                return updated;
+            });
         } catch (error) {
-            await this._transactionManager.rollback();
-            if (error instanceof AuthenticationError) {
+            if (error instanceof AppError) {
                 throw error;
             }
-            console.error("OTPService::validOTP error: ", error);
+            throw new AppError("Failed to update OTP instance");
+        }
+    }
+
+    public async validOTP(code: string, token: string, salt: string): Promise<boolean> {
+        try {
+            const result = await this.withTransaction(async (): Promise<OtpValidationResult> => {
+                const verification = await this.verificationRepository.findByToken(token);
+
+                if (!verification) {
+                    throw new AuthenticationError("Verification not found");
+                }
+
+                const otpState = verification.otp;
+                const storedOTPCode = otpState?.code;
+                const expiryTime = otpState?.expiry;
+                const currentTime = UtilityService.dateToUnix(new Date());
+
+                if (!expiryTime || currentTime > expiryTime) {
+                    await this.verificationRepository.updateVerification(verification._id as string, {
+                        status: VerificationStatus.EXPIRED
+                    });
+                    return {
+                        valid: false,
+                        error: new AuthenticationError(ResponseMessage.FAILED_PHONE_VERIFICATION_MESSAGE)
+                    };
+                }
+
+                if (!storedOTPCode || !CryptoService.verifyHash(code, storedOTPCode, salt)) {
+                    const attempts = (otpState?.attempts || 0) + 1;
+                    if (otpState) {
+                        await this.verificationRepository.updateVerification(verification._id as string, {
+                            otp: {
+                                ...otpState,
+                                attempts,
+                                last_attempt: currentTime
+                            }
+                        });
+                    }
+                    return {
+                        valid: false,
+                        error: new AuthenticationError("Invalid verification or expired OTP")
+                    };
+                }
+
+                if (!otpState) {
+                    return {
+                        valid: false,
+                        error: new AuthenticationError("Invalid verification or expired OTP")
+                    };
+                }
+
+                await this.verificationRepository.updateVerification(verification._id as string, {
+                    status: VerificationStatus.VERIFIED,
+                    otp: {
+                        ...otpState,
+                        verified: true
+                    }
+                });
+
+                return { valid: true };
+            });
+
+            if (!result.valid) {
+                throw result.error;
+            }
+
+            return true;
+        } catch (error) {
+            if (error instanceof AppError) {
+                throw error;
+            }
             throw new AuthenticationError("Failed to validate OTP");
         }
     }

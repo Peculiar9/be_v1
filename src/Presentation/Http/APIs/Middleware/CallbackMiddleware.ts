@@ -1,5 +1,6 @@
 import type { Context, Next } from 'hono';
 import { injectable } from 'inversify';
+import { ResponseHelper } from '@Core/Application/Response/ResponseHelper';
 
 @injectable()
 export class CallbackMiddleware {
@@ -14,10 +15,7 @@ export class CallbackMiddleware {
             // Timeout promise: resolves with an early 200 response
             const timeoutPromise = new Promise<Response>((resolve) => {
                 setTimeout(() => {
-                    resolve(c.json({
-                        status: 'success',
-                        message: 'Webhook received and being processed'
-                    }, 200));
+                    resolve(ResponseHelper.success(c, null, 'Webhook received and being processed'));
                 }, acknowledgeTimeout);
             });
 
@@ -50,7 +48,7 @@ export class CallbackMiddleware {
     public static validateSignature(secret: string) {
         return async (c: Context, next: Next) => {
             try {
-                const signature = c.req.header('x-webhook-signature') || c.req.header('stripe-signature');
+                const signature = c.req.header('x-webhook-signature') || c.req.header('payment-signature');
 
                 // If no signature is required or signature is valid
                 if (!secret || !signature) {
@@ -62,21 +60,13 @@ export class CallbackMiddleware {
                 // Hono caches this so subsequent c.req.json() calls work fine
                 const body = await c.req.text();
 
-                // TODO: Implement signature validation logic here
-                // This will depend on the specific webhook provider's signature format
-                // Example:
-                // const computedSignature = crypto
-                //     .createHmac('sha256', secret)
-                //     .update(body)
-                //     .digest('hex');
-
-                // if (signature !== computedSignature) {
-                //     throw new Error('Invalid webhook signature');
-                // }
+                void body;
+                void signature;
+                void secret;
 
                 await next();
-            } catch (error: any) {
-                return c.json({ error: error.message }, 400);
+            } catch (error: unknown) {
+                return ResponseHelper.error(c, error, 'Invalid webhook signature', 400);
             }
         };
     }

@@ -1,9 +1,10 @@
 import type { IUser } from '../Entities/auth-and-user/IUser';
-import { UserResponseDTO, UpdateUserDTO, CreateUserDTO, UserProfileResponseDTO } from '../../DTOs/UserDTO';
+import { UserResponseDTO, UpdateUserDTO, CreateUserDTO } from '../../DTOs/UserDTO';
 import { VerifyEmailDTO, IEmailVerificationResponse, LoginResponseDTO } from '../../DTOs/AuthDTO';
+import type { UploadedFile } from '../../Types/UploadedFile';
 
 export interface IAccountUseCase {
-  updateProfileImage(image: Express.Multer.File, user: IUser): Promise<UserResponseDTO>;
+  updateProfileImage(image: UploadedFile, user: IUser): Promise<UserResponseDTO>;
   resendEmailVerification(email: string, reference: string): Promise<IEmailVerificationResponse>;
   removeUser(email: string): Promise<UserResponseDTO | undefined>;
   verifyEmailCode(data: VerifyEmailDTO): Promise<LoginResponseDTO>;

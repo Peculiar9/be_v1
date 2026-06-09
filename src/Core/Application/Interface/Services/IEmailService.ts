@@ -1,10 +1,11 @@
 import { EmailOTPDTO, EmailVerificationResponse } from '../../DTOs/EmailDTO';
+import type { EmailData } from '@Infrastructure/Services/data/EmailData';
 
 export interface IEmailService {
-    sendVerificationEmail(data: any, userSalt: string, next: string): Promise<any>;
-    sendPasswordResetEmail(data: any): Promise<any>;
-    sendWelcomeEmail(data: any): Promise<any>;
-    sendProfileUpdateEmail(data: any): Promise<any>;
+    sendVerificationEmail(data: EmailData, userSalt: string, next: string): Promise<boolean>;
+    sendPasswordResetEmail(data: EmailOTPDTO): Promise<boolean>;
+    sendWelcomeEmail(data: EmailData): Promise<boolean>;
+    sendProfileUpdateEmail(data: EmailData): Promise<boolean>;
     
     // OTP related methods
     sendOTPEmail(data: EmailOTPDTO): Promise<EmailVerificationResponse>;

@@ -1,29 +1,38 @@
 import { inject, injectable } from 'inversify';
 import { TYPES } from '@Core/Types/Constants';
-import { BaseApiService } from '../API/BaseApiService';
 import { HttpClientFactory } from '../Http/HttpClientFactory';
 import { UserResponseDTO } from '@Core/Application/DTOs/UserDTO';
 import type { IUser } from '@Core/Application/Interface/Entities/auth-and-user/IUser';
 import { UserRepository } from '../Repository/SQL/users/UserRepository';
 import { UserRole } from '@Core/Application/Enums/UserRole';
+import { DatabaseIsolationLevel, TransactionManager } from 'peculiar-orm';
+import { BaseService } from './base/BaseService';
 
 @injectable()
-export class UserService extends BaseApiService {
+export class UserService extends BaseService {
     constructor(
-        @inject(TYPES.HttpClientFactory) httpClientFactory: HttpClientFactory,
-        @inject(TYPES.UserRepository) private userRepository: UserRepository
+        @inject(TYPES.HttpClientFactory) private readonly httpClientFactory: HttpClientFactory,
+        @inject(TYPES.UserRepository) private userRepository: UserRepository,
+        @inject(TYPES.TransactionManager) protected readonly transactionManager: TransactionManager
     ) {
-        super(httpClientFactory, process.env.API_BASE_URL!);
+        super(transactionManager);
     }
 
     async getAllUsers(): Promise<UserResponseDTO[]> {
-        const users = await this.userRepository.findAll();
+        const users = await this.withTransaction(
+            () => this.userRepository.findAll(),
+            DatabaseIsolationLevel.READ_COMMITTED,
+            true
+        );
         return users.map((user: IUser) => this.constructUserObject(user));
     }
 
     // Method for making authenticated API calls to external services
     async makeExternalApiCall(token: string) {
-        const authenticatedClient = this.createAuthenticatedClient(token);
+        const authenticatedClient = this.httpClientFactory.createAuthenticatedClient(
+            { baseURL: process.env.API_BASE_URL! },
+            token
+        );
         return await authenticatedClient.get('/some-external-endpoint');
     }
 
@@ -43,5 +52,4 @@ export class UserService extends BaseApiService {
         };
     }
 }
-
 

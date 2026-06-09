@@ -1,13 +1,17 @@
 import { inject, injectable } from 'inversify';
 import { TYPES } from '@Core/Types/Constants';
 import { TableNames } from '@Core/Application/Enums/TableNames';
-import { TransactionManager } from '../Repository/SQL/Abstractions/TransactionManager';
+import { TransactionManager } from 'peculiar-orm';
 import { User } from '@Core/Application/Entities/User';
 import { getEntityMetadata, getIndexMetadata } from 'peculiar-orm';
 import { DatabaseError } from '@Core/Application/Error/AppError';
 import { Console } from '../Utils/Console';
 import { FileManager } from '@Core/Application/Entities/FileManager';
 import { UserKYC } from '@Core/Application/Entities/UserKYC';
+import { Verification } from '@Core/Application/Entities/Verification';
+import { LinkedAccounts } from '@Core/Application/Entities/LinkedAccounts';
+
+type EntityDefinition = Parameters<typeof getEntityMetadata>[0];
 
 @injectable()
 export class DatabaseInitializer {
@@ -20,6 +24,8 @@ export class DatabaseInitializer {
         const creationOrder = [
             { entity: User, tableName: TableNames.USERS },
             { entity: FileManager, tableName: TableNames.FILE_MANAGER },
+            { entity: Verification, tableName: TableNames.VERIFICATIONS },
+            { entity: LinkedAccounts, tableName: TableNames.LINKED_ACCOUNTS },
             { entity: UserKYC, tableName: TableNames.USER_KYC },
         ];
 
@@ -67,7 +73,7 @@ export class DatabaseInitializer {
         Console.info('All database tables initialized/updated successfully');
     }
 
-    private async createTableIfNotExists(entity: Function, tableName: string): Promise<void> {
+    private async createTableIfNotExists(entity: EntityDefinition, tableName: string): Promise<void> {
         try {
             const metadata = getEntityMetadata(entity);
             const indexMetaData = getIndexMetadata(entity, tableName);
@@ -102,7 +108,6 @@ export class DatabaseInitializer {
                 );`;
 
 
-            console.log({ query });
             Console.info("Executing table creation query", { tableName });
             await this.transactionManager.getClient().query(query);
             Console.info(`Table initialized successfully`, { tableName });
@@ -122,7 +127,7 @@ export class DatabaseInitializer {
         }
     }
 
-    private async updateTableSchema(entity: Function, tableName: string): Promise<void> {
+    private async updateTableSchema(entity: EntityDefinition, tableName: string): Promise<void> {
         try {
             const metadata = getEntityMetadata(entity);
             const indexMetaData = getIndexMetadata(entity, tableName);
@@ -213,15 +218,16 @@ export class DatabaseInitializer {
                     DROP CONSTRAINT IF EXISTS "${constraint.conname}" CASCADE;
                 `;
                 await this.transactionManager.getClient().query(dropQuery);
-                console.log(`Dropped constraint ${constraint.conname} from ${tableName}`);
+                Console.info(`Dropped constraint ${constraint.conname} from ${tableName}`);
             }
         } catch (error: any) {
-            console.error(`Failed to drop constraints for ${tableName}:`, error);
+            Console.error(error, { message: `Failed to drop constraints for ${tableName}` });
             throw new DatabaseError(`Failed to drop constraints: ${error.message}`);
         }
     }
 
     private async seedDataToDatabase(tableName: string): Promise<void> {
+        void tableName;
         // Generic seeding logic or empty
     }
 

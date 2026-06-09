@@ -10,6 +10,7 @@ import AuthMiddleware from "../../Middleware/AuthMiddleware";
 import { uploadSingle } from "../../Middleware/MulterMiddleware";
 import { IUser } from "@Core/Application/Interface/Entities/auth-and-user/IUser";
 import { ResponseMessage } from "@Core/Application/Response/ResponseFormat";
+import type { UploadedFile } from "@Core/Application/Types/UploadedFile";
 
 @controller("/accounts")
 export class AccountController extends BaseController {
@@ -60,15 +61,14 @@ export class AccountController extends BaseController {
       }
       const user = c.get('user') as IUser;
 
-      // Mock Multer file if needed
-      const mockMulterFile: any = {
+      const uploadedFile: UploadedFile = {
         buffer: Buffer.from(await file.arrayBuffer()),
         originalname: file.name,
         mimetype: file.type,
         size: file.size
       };
 
-      const result = await this.accountUseCase.updateProfileImage(mockMulterFile, user);
+      const result = await this.accountUseCase.updateProfileImage(uploadedFile, user);
       return this.success(c, result, "Profile image updated successfully");
     } catch (error: any) {
       return this.error(c, error.message, error.statusCode);

@@ -2,12 +2,11 @@ import { injectable, inject } from "inversify";
 import { TYPES } from "@Core/Types/Constants";
 import type { IAuthenticationService } from "@Core/Application/Interface/Services/IAuthenticationService";
 import { LoginResponseDTO } from "@Core/Application/DTOs/AuthDTO";
-import { AuthMethod, VerificationStatus } from "@Core/Application/Interface/Entities/auth-and-user/IUser";
+import { VerificationStatus } from "@Core/Application/Interface/Entities/auth-and-user/IUser";
 import type { IUser } from "@Core/Application/Interface/Entities/auth-and-user/IUser";
 import { VerificationType } from "@Core/Application/Interface/Entities/auth-and-user/IVerification";
-import type { IVerification } from "@Core/Application/Interface/Entities/auth-and-user/IVerification";
 import { UserRepository } from "../Repository/SQL/users/UserRepository";
-import { TransactionManager } from "../Repository/SQL/Abstractions/TransactionManager";
+import { TransactionManager } from "peculiar-orm";
 import { Console, LogLevel } from "../Utils/Console";
 import { AppError, AuthenticationError, ValidationError } from "@Core/Application/Error/AppError";
 import { ResponseMessage } from "@Core/Application/Response/ResponseFormat";
@@ -23,8 +22,6 @@ import { EmailOTPDTO } from "@Core/Application/DTOs/EmailDTO";
 import { BaseService } from "./base/BaseService";
 import { AuthHelpers } from "./helpers/AuthHelpers";
 import { TokenService } from "./TokenService";
-import { EnvironmentConfig } from "../Config/EnvironmentConfig";
-import { User } from "@Core/Application/Entities/User";
 
 
 @injectable()
@@ -64,6 +61,10 @@ export class AuthenticationService extends BaseService implements IAuthenticatio
             }
 
             const { refreshToken, accessToken } = await this.tokenService.generateTokens(user);
+            await this.userRepository.update(user._id as string, {
+                refresh_token: await this.tokenService.hashRefreshToken(refreshToken),
+                last_login: new Date().toISOString(),
+            });
             if (transactionSuccessfullyStarted) {
                 await this.commitTransaction();
             }
@@ -94,35 +95,34 @@ export class AuthenticationService extends BaseService implements IAuthenticatio
         try {
             transactionSuccessfullyStarted = await this.beginTransaction();
 
-            try {
-                const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET as string) as any;
-                const userId = decoded.sub as string;
+            const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET as string) as any;
+            const userId = decoded.sub as string;
 
-                const user = await this.userRepository.findById(userId);
-                if (!user) {
-                    throw new AuthenticationError(ResponseMessage.USER_NOT_FOUND_MESSAGE);
-                }
-
-                if (!user.refresh_token) {
-                    throw new AuthenticationError(ResponseMessage.INVALID_REFRESH_TOKEN);
-                }
-
-                const isRefreshTokenValid = await bcrypt.compare(refreshToken, user.refresh_token);
-
-                if (!isRefreshTokenValid) {
-                    throw new AuthenticationError(ResponseMessage.INVALID_REFRESH_TOKEN);
-                }
-
-                const tokens = await this.tokenService.generateTokens(user);
-
-                if (transactionSuccessfullyStarted) {
-                    await this.commitTransaction();
-                }
-
-                return { user, accessToken: tokens.accessToken, refreshToken: refreshToken };
-            } catch (verifyError: any) {
-                throw verifyError;
+            const user = await this.userRepository.findById(userId);
+            if (!user) {
+                throw new AuthenticationError(ResponseMessage.USER_NOT_FOUND_MESSAGE);
             }
+
+            if (!user.refresh_token) {
+                throw new AuthenticationError(ResponseMessage.INVALID_REFRESH_TOKEN);
+            }
+
+            const isRefreshTokenValid = await bcrypt.compare(refreshToken, user.refresh_token);
+
+            if (!isRefreshTokenValid) {
+                throw new AuthenticationError(ResponseMessage.INVALID_REFRESH_TOKEN);
+            }
+
+            const tokens = await this.tokenService.generateTokens(user);
+            await this.userRepository.update(user._id as string, {
+                refresh_token: await this.tokenService.hashRefreshToken(tokens.refreshToken),
+            });
+
+            if (transactionSuccessfullyStarted) {
+                await this.commitTransaction();
+            }
+
+            return { user, accessToken: tokens.accessToken, refreshToken: tokens.refreshToken };
         } catch (error: any) {
 
             if (transactionSuccessfullyStarted) {
@@ -183,9 +183,6 @@ export class AuthenticationService extends BaseService implements IAuthenticatio
 
             const resetToken = UtilityService.generate4Digit();
 
-            const hashedToken = await UtilityService.hashToken(resetToken);
-
-
             const verification = await this.authHelpers.createEmailVerificationRecord(
                 user._id as string,
                 email,
@@ -229,7 +226,82 @@ export class AuthenticationService extends BaseService implements IAuthenticatio
     }
 
     async resetPassword(token: string, newPassword: string): Promise<boolean> {
-        throw new Error("Method not implemented");
+        let transactionSuccessfullyStarted = false;
+        try {
+            transactionSuccessfullyStarted = await this.beginTransaction();
+            const verification = await this.verificationRepository.findByReference(token);
+            if (!verification || !verification.user_id) {
+                throw new ValidationError(ResponseMessage.INVALID_TOKEN_MESSAGE);
+            }
+
+            const currentTime = UtilityService.dateToUnix(new Date());
+            if (!verification.expiry || verification.expiry < currentTime) {
+                throw new ValidationError(ResponseMessage.INVALID_TOKEN_MESSAGE);
+            }
+
+            const user = await this.userRepository.findById(verification.user_id);
+            if (!user) {
+                throw new ValidationError(ResponseMessage.USER_NOT_FOUND_MESSAGE);
+            }
+
+            await this.userRepository.update(user._id as string, {
+                password: await CryptoService.hashString(newPassword, user.salt as string),
+                reset_token: null,
+                reset_token_expires: null,
+                refresh_token: null,
+            });
+
+            await this.verificationRepository.update(verification._id as string, {
+                status: VerificationStatus.COMPLETED,
+            });
+
+            if (transactionSuccessfullyStarted) {
+                await this.commitTransaction();
+            }
+            return true;
+        } catch (error: any) {
+            if (transactionSuccessfullyStarted) {
+                await this.rollbackTransaction();
+            }
+            if (error instanceof AppError) {
+                throw error;
+            }
+            throw new ValidationError(ResponseMessage.USER_PASSWORD_RESET_FAILED);
+        }
+    }
+
+    async changePassword(userId: string, currentPassword: string, newPassword: string): Promise<boolean> {
+        let transactionSuccessfullyStarted = false;
+        try {
+            transactionSuccessfullyStarted = await this.beginTransaction();
+            const user = await this.userRepository.findById(userId);
+            if (!user) {
+                throw new ValidationError(ResponseMessage.USER_NOT_FOUND_MESSAGE);
+            }
+
+            const currentPasswordValid = CryptoService.verifyHash(currentPassword, user.password, user.salt);
+            if (!currentPasswordValid) {
+                throw new AuthenticationError(ResponseMessage.INVALID_PASSWORD_MESSAGE);
+            }
+
+            await this.userRepository.update(user._id as string, {
+                password: await CryptoService.hashString(newPassword, user.salt),
+                refresh_token: null,
+            });
+
+            if (transactionSuccessfullyStarted) {
+                await this.commitTransaction();
+            }
+            return true;
+        } catch (error: any) {
+            if (transactionSuccessfullyStarted) {
+                await this.rollbackTransaction();
+            }
+            if (error instanceof AppError) {
+                throw error;
+            }
+            throw new ValidationError(ResponseMessage.INVALID_PASSWORD_MESSAGE);
+        }
     }
 
     async requestPasswordResetOTP(email: string): Promise<void> {
@@ -320,11 +392,9 @@ export class AuthenticationService extends BaseService implements IAuthenticatio
                 throw new ValidationError('Maximum verification attempts exceeded. Please request a new code');
             }
 
-            const hashedOtp = await CryptoService.hashString(otp, user.salt as string);
+            const isOtpValid = CryptoService.verifyHash(otp, verification.otp.code, user.salt as string);
 
-            if (!EnvironmentConfig.isProduction() && otp === '123456') {
-
-            } else if (hashedOtp !== verification.otp.code) {
+            if (!isOtpValid) {
                 await this.verificationRepository.update(verification._id as string, {
                     otp: {
                         ...verification.otp,
@@ -395,7 +465,7 @@ export class AuthenticationService extends BaseService implements IAuthenticatio
 
     // =========================CONSOLIDATED APP AUTHENTICATION========================
     authenticateV2(identifier: string, password: string): Promise<LoginResponseDTO | undefined> {
-        throw new Error("Method not implemented.");
+        return this.authenticate(identifier, password);
     }
 
 

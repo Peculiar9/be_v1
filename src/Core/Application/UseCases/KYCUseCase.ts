@@ -1,4 +1,4 @@
-import { inject } from "inversify";
+import { inject, injectable } from "inversify";
 import { TYPES } from "@Core/Types/Constants";
 import type { IKYCUseCase } from "../Interface/UseCases/IKYCUseCase";
 import { KYCStage, KYCStatus } from "../Interface/Entities/auth-and-user/IVerification";
@@ -7,46 +7,45 @@ import { UserKYCRepository } from "@Infrastructure/Repository/SQL/auth/UserKYCRe
 import { UserRepository } from "@Infrastructure/Repository/SQL/users/UserRepository";
 import { RegistrationError } from "../Error/AppError";
 
+@injectable()
 export class KYCUseCase implements IKYCUseCase {
-    constructor(@inject(TYPES.UserKYCRepository) private readonly userKYCRepository: UserKYCRepository, @inject(TYPES.UserRepository) private readonly userRepository: UserRepository) {}
-    
-    
+    constructor(
+        @inject(TYPES.UserKYCRepository) private readonly userKYCRepository: UserKYCRepository,
+        @inject(TYPES.UserRepository) private readonly userRepository: UserRepository
+    ) {}
+
     async checkOrInitializeKYC(userId: string): Promise<IUserKYC> {
         const userKYC = await this.userKYCRepository.findByUserId(userId);
-        if (!userKYC) {
-            const user = await this.userRepository.findById(userId);
-                if (!user) {
-                throw new RegistrationError("User not found");
-            }
-            
-
-            const newUserKYC: Partial<IUserKYC> = {
-                user_id: userId,
-                status: KYCStatus.PENDING,
-                current_stage: KYCStage.FACE_UPLOAD,
-                stage_metadata: {},
-            }
-            return this.userKYCRepository.create(newUserKYC);
+        if (userKYC) {
+            return userKYC;
         }
 
-        if(userKYC.status === KYCStatus.COMPLETED) {
-            throw new RegistrationError("User already completed KYC, proceed to app");
+        const user = await this.userRepository.findById(userId);
+        if (!user) {
+            throw new RegistrationError("User not found");
+        }
+
+        return await this.userKYCRepository.create({
+            user_id: userId,
+            status: KYCStatus.PENDING,
+            current_stage: KYCStage.IDENTITY,
+            stage_metadata: {},
+        });
+    }
+
+    async updateStage(userId: string, stage: KYCStage, status: KYCStatus, metadata?: Record<string, unknown>): Promise<IUserKYC> {
+        const userKYC = await this.userKYCRepository.updateStage(userId, stage, status, metadata);
+        if (!userKYC) {
+            throw new RegistrationError("KYC record not found");
         }
         return userKYC;
     }
-    getFaceImageUploadUrls(userId: string): Promise<{ frontFace: { uploadUrl: string; key: string; }; sideFace: { uploadUrl: string; key: string; }; }> {
-        throw new Error("Method not implemented.");
-    }
-    submitFaceImages(userId: string, frontFaceKey: string, sideFaceKey: string): Promise<IUserKYC> {
-        throw new Error("Method not implemented.");
-    }
-    getLicenseUploadUrl(userId: string): Promise<{ uploadUrl: string; key: string; }> {
-        throw new Error("Method not implemented.");
-    }
-    submitLicenseAndPerformVerifications(userId: string, licenseKey: string): Promise<IUserKYC> {
-        throw new Error("Method not implemented.");
-    }
-    addPaymentMethod(userId: string, paymentToken: string): Promise<IUserKYC> {
-        throw new Error("Method not implemented.");
+
+    async markFailed(userId: string, reason: string): Promise<IUserKYC> {
+        const userKYC = await this.userKYCRepository.setFailure(userId, reason);
+        if (!userKYC) {
+            throw new RegistrationError("KYC record not found");
+        }
+        return userKYC;
     }
 }

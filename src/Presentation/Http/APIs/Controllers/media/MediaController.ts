@@ -1,5 +1,5 @@
 import type { Context } from 'hono';
-import { injectable, inject } from 'inversify';
+import { inject } from 'inversify';
 import { controller, httpPost, httpDelete, httpGet, ctx } from 'hono-injector';
 import { BaseController } from '../BaseController';
 import { TYPES } from '@Core/Types/Constants';
@@ -55,7 +55,6 @@ export class MediaController extends BaseController {
                 resourceType: result.resourceType
             }, 'File uploaded successfully');
         } catch (error: any) {
-            console.error('Error uploading file:', error);
             return this.error(c, `Failed to upload file: ${error.message}`, 500, error);
         }
     }
@@ -98,7 +97,6 @@ export class MediaController extends BaseController {
 
             return this.success(c, responseData, 'Files uploaded successfully');
         } catch (error: any) {
-            console.error('Error uploading multiple files:', error);
             return this.error(c, `Failed to upload files: ${error.message}`, 500, error);
         }
     }
@@ -123,7 +121,6 @@ export class MediaController extends BaseController {
 
             return this.success(c, result, 'File deleted successfully');
         } catch (error: any) {
-            console.error('Error deleting file:', error);
             return this.error(c, `Failed to delete file: ${error.message}`, 500, error);
         }
     }
@@ -158,7 +155,6 @@ export class MediaController extends BaseController {
 
             return this.success(c, { url }, 'Transformation URL generated successfully');
         } catch (error: any) {
-            console.error('Error generating transformation URL:', error);
             return this.error(c, `Failed to generate transformation URL: ${error.message}`, 500, error);
         }
     }
@@ -179,7 +175,6 @@ export class MediaController extends BaseController {
 
             return this.success(c, details, 'File details retrieved successfully');
         } catch (error: any) {
-            console.error('Error retrieving file details:', error);
             return this.error(c, `Failed to retrieve file details: ${error.message}`, 500, error);
         }
     }

@@ -8,6 +8,9 @@ import { PublishCommand } from "@aws-sdk/client-sns";
 import type { IAWSHelper } from "@Core/Application/Interface/Services/IAWSHelper";
 import { ComparedFace, CompareFacesCommandOutput } from "@aws-sdk/client-rekognition";
 import { FileFormat } from "@Core/Application/Enums/FileFormat";
+import type { UploadedFile } from "@Core/Application/Types/UploadedFile";
+import { ServiceError } from "@Core/Application/Error/AppError";
+import { Console, LogLevel } from "../../Utils/Console";
 
 @injectable()
 export class AWSHelper extends AWSBaseServices implements IAWSHelper {
@@ -101,8 +104,7 @@ export class AWSHelper extends AWSBaseServices implements IAWSHelper {
 
             return await this.snsClient.send(new PublishCommand(params));
         } catch (error: any) {
-            console.error('AWSHelper::sendSMS() => error => ', error.message);
-            throw new Error(`Failed to send SMS: ${error.message}`);
+            throw new ServiceError(`Failed to send SMS: ${error.message}`);
         }
     }
 
@@ -118,28 +120,30 @@ export class AWSHelper extends AWSBaseServices implements IAWSHelper {
         return phone.replace(/[^\d+]/g, '');
     }
 
-    async licenseDetailsUpload(file: any, fileKey: string): Promise<any> {
+    async licenseDetailsUpload(file: UploadedFile | Buffer | string, fileKey: string): Promise<void> {
         const uploadData = {
             bucketName: BucketName.VERIFICATION,
             directoryPath: `license/`,
             fileName: fileKey,
-            fileBody: file,
+            fileBody: this.toFileBody(file),
+            contentType: this.toContentType(file),
         };
         await this.uploadFile(uploadData);
     }
 
-    async carImageUpload(file: any, fileKey: string): Promise<any> {
+    async carImageUpload(file: UploadedFile, fileKey: string): Promise<string> {
         const uploadData = {
             bucketName: BucketName.VERIFICATION,
             directoryPath: `carImage/`,
             fileName: fileKey,
             fileBody: file.buffer,
-            contentType: file.type,
+            contentType: file.mimetype,
         };
-        return await this.uploadFile(uploadData);
+        await this.uploadFile(uploadData);
+        return this.toPublicS3Url(BucketName.VERIFICATION, `${uploadData.directoryPath}${fileKey}`);
     }
 
-    async profileImageUpload(file: any, fileKey: string): Promise<string> {
+    async profileImageUpload(file: UploadedFile, fileKey: string): Promise<string> {
         // Get file extension from mimetype or default to jpg
         const extension = file.mimetype ? file.mimetype.split('/')[1] || 'jpg' : 'jpg';
         const fileKeyWithExt = `${fileKey}.${extension}`;
@@ -152,8 +156,7 @@ export class AWSHelper extends AWSBaseServices implements IAWSHelper {
             contentType: file.mimetype || 'image/jpeg',
         };
 
-        console.log("AWSHelper::profileImageUpload() before uploadFile calling of the profileImageUpload: => ", uploadData);
-        const result = await this.uploadFile(uploadData);
+        await this.uploadFile(uploadData);
 
         // Construct and return the full URL
         const region = process.env.AWS_REGION || 'us-east-1';
@@ -161,19 +164,19 @@ export class AWSHelper extends AWSBaseServices implements IAWSHelper {
     }
 
     async batchImageUpload(
-        files: any[],
+        files: Array<UploadedFile | Buffer | string>,
         fileKey: string[],
         bucketName: BucketName,
         directoryPath: string = ''
     ): Promise<string[]> {
         const urls: string[] = [];
-        await Promise.all(files.map(async (file: any, index: number) => {
+        await Promise.all(files.map(async (file, index: number) => {
             const uploadData = {
                 bucketName,
                 directoryPath: `${directoryPath}/`,
                 fileName: fileKey[index],
-                fileBody: file,
-                contentType: FileFormat.JPEG,
+                fileBody: this.toFileBody(file),
+                contentType: this.toContentType(file) || FileFormat.JPEG,
             };
 
             await this.uploadFile(uploadData);
@@ -200,15 +203,27 @@ export class AWSHelper extends AWSBaseServices implements IAWSHelper {
                 });
                 deletedKeys.push(fullPath);
             } catch (error) {
-                console.error(`Failed to delete ${fullPath}:`, error);
+                Console.write('Failed to delete batch image', LogLevel.WARNING, {
+                    fileKey: fullPath,
+                    error: error instanceof Error ? error.message : String(error)
+                });
             }
         }));
 
         return deletedKeys;
     }
 
-    selfieUpload(file: Express.Multer.File, fileKey: string): Promise<any> {
-        throw new Error("Method not implemented.");
+    async selfieUpload(file: UploadedFile, fileKey: string): Promise<string> {
+        const uploadData = {
+            bucketName: BucketName.VERIFICATION,
+            directoryPath: `selfie/`,
+            fileName: fileKey,
+            fileBody: file.buffer,
+            contentType: file.mimetype,
+        };
+
+        await this.uploadFile(uploadData);
+        return this.toPublicS3Url(BucketName.VERIFICATION, `${uploadData.directoryPath}${fileKey}`);
     }
     /**
      * Generate a presigned upload URL for a given bucket/key/contentType
@@ -268,12 +283,53 @@ export class AWSHelper extends AWSBaseServices implements IAWSHelper {
         return labels.some(label => label.Name && validLabels.includes(label.Name));
     }
     extractLicenseDocumentText(fileKey: string): Promise<string[]> {
-        throw new Error("Method not implemented.");
+        return this.extractDocumentText(fileKey);
     }
-    analyzeDocuments(documentKeyTarget: string, documentKeySource: string): Promise<[number, ComparedFace]> {
-        throw new Error("Method not implemented.");
+    async analyzeDocuments(documentKeyTarget: string, documentKeySource: string): Promise<[number, ComparedFace]> {
+        const output = await this.compareFaces(documentKeySource, documentKeyTarget);
+        const bestMatch = output?.FaceMatches?.[0]?.Face;
+        const similarity = output?.FaceMatches?.[0]?.Similarity ?? 0;
+
+        return [similarity, bestMatch ?? {} as ComparedFace];
     }
-    compareFaces(sourceImage: string, targetImage: string): Promise<CompareFacesCommandOutput | void> {
-        throw new Error("Method not implemented.");
+    async compareFaces(sourceImage: string, targetImage: string): Promise<CompareFacesCommandOutput | void> {
+        const { CompareFacesCommand } = await import("@aws-sdk/client-rekognition");
+        const command = new CompareFacesCommand({
+            SourceImage: {
+                S3Object: {
+                    Bucket: BucketName.VERIFICATION,
+                    Name: sourceImage,
+                },
+            },
+            TargetImage: {
+                S3Object: {
+                    Bucket: BucketName.VERIFICATION,
+                    Name: targetImage,
+                },
+            },
+            SimilarityThreshold: 80,
+        });
+
+        return await this.rekognitionClient.send(command);
+    }
+
+    private toFileBody(file: UploadedFile | Buffer | string): Buffer | string {
+        if (Buffer.isBuffer(file) || typeof file === 'string') {
+            return file;
+        }
+
+        return file.buffer;
+    }
+
+    private toContentType(file: UploadedFile | Buffer | string): string | undefined {
+        if (Buffer.isBuffer(file) || typeof file === 'string') {
+            return undefined;
+        }
+
+        return file.mimetype;
+    }
+
+    private toPublicS3Url(bucketName: BucketName, key: string): string {
+        return `https://${bucketName}.s3.amazonaws.com/${key}`;
     }
 }

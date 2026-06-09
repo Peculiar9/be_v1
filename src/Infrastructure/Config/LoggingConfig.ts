@@ -1,5 +1,7 @@
 import * as Sentry from '@sentry/node';
-import { Application, RequestHandler, ErrorRequestHandler } from 'express';
+
+type RequestHandler = (req: any, res: any, next: () => void) => void;
+type ErrorRequestHandler = (error: any, req: any, res: any, next: (error?: unknown) => void) => void;
 
 export class LoggingConfig {
     private static instance: LoggingConfig;
@@ -14,7 +16,8 @@ export class LoggingConfig {
         return LoggingConfig.instance;
     }
 
-    public initialize(app: Application): void {
+    public initialize(app?: unknown): void {
+        void app;
         if (this.initialized) {
             return;
         }
@@ -23,13 +26,9 @@ export class LoggingConfig {
 
         if (environment !== 'development') {
             if (!process.env.SENTRY_DSN) {
-                console.warn('SENTRY_DSN not found in environment variables. Error tracking will be disabled.');
                 return;
             }
             const dsn = process.env.SENTRY_DSN!;
-            console.log('\n');
-            console.log('SENTRY_DSN:', dsn);
-            console.log('\n');
             Sentry.init({
                 dsn,
                 environment: environment,
@@ -94,7 +93,7 @@ export class LoggingConfig {
         };
     }
 
-    public captureException(error: Error, context?: Record<string, any>): void {
+    public captureException(error: Error, context?: Record<string, unknown>): void {
         const environment = process.env.NODE_ENV || 'development';
 
         if (environment !== 'development' && this.initialized) {
@@ -104,7 +103,7 @@ export class LoggingConfig {
         }
     }
 
-    public captureMessage(message: string, level: 'info' | 'warning' | 'error' | 'debug' = 'info', context?: Record<string, any>): void {
+    public captureMessage(message: string, level: 'info' | 'warning' | 'error' | 'debug' = 'info', context?: Record<string, unknown>): void {
         const environment = process.env.NODE_ENV || 'development';
 
         if (environment !== 'development' && this.initialized) {

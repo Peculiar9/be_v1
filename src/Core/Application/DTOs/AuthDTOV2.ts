@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsString, IsEmail, Length, IsEnum, Matches } from "class-validator";
+import { IsNotEmpty, IsString, IsEmail, Length, IsEnum } from "class-validator";
 import { UserRole } from "../Enums/UserRole";
 
 export class UserRegistrationDTO {
