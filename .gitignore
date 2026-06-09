@@ -1,6 +1,25 @@
 node_modules
 /dist
+build/
+coverage/
+.nyc_output/
+*.lcov
+
+# Environment files stay local; keep .env.example tracked.
 .env
+.env.*
+!.env.example
+
+# Bun package manager state
+bun.lockb
+
+# Logs
+*.log
+yarn-error.log
+
+# OS files
+.DS_Store
+
 # WebStorm/IntelliJ IDEA
 .idea/
 *.iml
@@ -8,7 +27,6 @@ node_modules
 *.ipr
 .idea_modules/
 out/
-build/
 
 # User-specific files
 .idea/workspace.xml
@@ -21,22 +39,15 @@ build/
 *.iws
 
 # Mac OS specific
-.DS_Store
 .AppleDouble
 .LSOverride
 
-# Logs and databases
-*.log
+# Databases
 *.sqlite
 
 # Cache files
 .idea/caches/
 .idea/libraries/
-
-# Add these lines to your .gitignore
-coverage/
-.nyc_output/
-*.lcov
 
 #Ignore vscode AI rules
 .github/instructions/codacy.instructions.md
