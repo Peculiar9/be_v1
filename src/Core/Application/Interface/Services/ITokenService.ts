@@ -11,6 +11,7 @@ export interface ITokenService {
      * @returns Object containing accessToken and refreshToken
      */
     generateTokens(user: IUser): Promise<{ accessToken: string; refreshToken: string }>;
+    hashRefreshToken(refreshToken: string): Promise<string>;
     
     /**
      * Verifies a JWT token

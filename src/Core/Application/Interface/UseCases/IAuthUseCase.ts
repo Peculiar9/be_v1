@@ -12,16 +12,17 @@ import {
     VerifyEmailDTO
 } from "../../DTOs/AuthDTO";
 import { UserResponseDTO } from "../../DTOs/UserDTO";
+import type { UploadedFile } from "../../Types/UploadedFile";
 
 export interface IAuthUseCase {
     register(dto: UserRegistrationDTO): Promise<UserResponseDTO>;
     verifyEmail(dto: VerifyEmailDTO): Promise<{ accessToken: string, refreshToken: string, user: UserResponseDTO }>;
     resendEmailVerification(dto: VerifyEmailDTO): Promise<IEmailVerificationResponse>;
 
-    updateProfileImage(image: Express.Multer.File, user: IUser): Promise<UserResponseDTO>;
+    updateProfileImage(image: UploadedFile, user: IUser): Promise<UserResponseDTO>;
     refresh(dto: RefreshTokenDTO): Promise<{ accessToken: string, refreshToken: string, user: UserResponseDTO }>;
     login(dto: LoginDTO): Promise<{ accessToken: string, refreshToken: string, user: Partial<UserResponseDTO> }>;
-    logout(): Promise<UserResponseDTO>;
+    logout(user: IUser): Promise<{ message: string }>;
 
     // Password management
     forgotPassword(dto: ForgotPasswordDTO): Promise<{ message: string, email: string }>;
