@@ -6,8 +6,20 @@ import { ResponseMessage } from '@Core/Application/Response/ResponseFormat';
 import { DIContainer } from '@Core/DI/DIContainer';
 import type { IUser } from '@Core/Application/Interface/Entities/auth-and-user/IUser';
 import { UserRole } from '@Core/Application/Enums/UserRole';
-import { AuthenticationService } from '@Infrastructure/Services/AuthenticationService';
 import type { IAuthenticationService } from '@Core/Application/Interface/Services/IAuthenticationService';
+import { ResponseHelper } from '@Core/Application/Response/ResponseHelper';
+import {
+  Permission,
+  hasAnyPermission,
+  hasPermission,
+  hasRole,
+} from '@Core/Application/Permissions/Permissions';
+
+interface TokenPayload {
+  sub?: string;
+}
+
+type AuthenticatedHandler = (middleware: AuthMiddleware, c: Context, next: Next) => Promise<void>;
 
 @injectable()
 export class AuthMiddleware {
@@ -16,95 +28,95 @@ export class AuthMiddleware {
   ) { }
 
   public static authenticate() {
-    const middleware = AuthMiddleware.createInstance();
-    return async (c: Context, next: Next) => {
-      await middleware.authenticateInstance(c, next);
-    };
-  }
-
-  public static authenticateAdmin() {
-    const middleware = AuthMiddleware.createInstance();
-    return async (c: Context, next: Next) => {
-      await middleware.authenticateOperatorInstance(c, next);
-    };
+    return AuthMiddleware.createHandler(async (middleware, c, next) => {
+      const token = middleware.extractToken(c);
+      const user = await middleware.validateTokenAndUser(token);
+      c.set('user', user);
+      await next();
+    });
   }
 
   public static authenticateOptional() {
     const middleware = AuthMiddleware.createInstance();
     return async (c: Context, next: Next) => {
-      await middleware.authenticateOptionalInstance(c, next);
+      const token = middleware.extractTokenOptional(c);
+      if (token) {
+        try {
+          const user = await middleware.validateTokenAndUser(token);
+          c.set('user', user);
+        } catch {
+          c.set('user', undefined);
+        }
+      }
+      await next();
     };
   }
 
-   public static initializeContext() {
+  public static authenticateRoles(...roles: UserRole[]) {
+    return AuthMiddleware.createHandler(async (middleware, c, next) => {
+      const token = middleware.extractToken(c);
+      const user = await middleware.validateTokenAndUser(token);
+      middleware.ensureRoles(user, roles);
+      c.set('user', user);
+      await next();
+    });
+  }
+
+  public static authenticateAdmin() {
+    return AuthMiddleware.authenticateRoles(UserRole.ADMIN);
+  }
+
+  public static requirePermission(permission: Permission) {
+    return AuthMiddleware.createHandler(async (middleware, c, next) => {
+      const token = middleware.extractToken(c);
+      const user = await middleware.validateTokenAndUser(token);
+      middleware.ensurePermission(user, permission);
+      c.set('user', user);
+      await next();
+    });
+  }
+
+  public static requireAnyPermission(...permissions: Permission[]) {
+    return AuthMiddleware.createHandler(async (middleware, c, next) => {
+      const token = middleware.extractToken(c);
+      const user = await middleware.validateTokenAndUser(token);
+      middleware.ensureAnyPermission(user, permissions);
+      c.set('user', user);
+      await next();
+    });
+  }
+
+  public static initializeContext() {
     return async (c: Context, next: Next) => {
       const ipAddress = c.req.header('x-forwarded-for') || c.req.header('x-real-ip') || 'unknown';
       const userAgent = c.req.header('user-agent') || 'unknown';
-
-      // We import RequestContext here to avoid circular dependency issues if possible, 
-      // or ensure clean imports.
       const { RequestContext } = await import('@Infrastructure/Context/RequestContext');
 
       return RequestContext.run({ ipAddress, userAgent }, async () => {
-        console.log('AuthMiddleware::initializeContext -> ', ipAddress, userAgent);
         return await next();
       });
     };
   }
 
+  private static createHandler(handler: AuthenticatedHandler) {
+    const middleware = AuthMiddleware.createInstance();
+    return async (c: Context, next: Next) => {
+      try {
+        await handler(middleware, c, next);
+      } catch (error) {
+        return ResponseHelper.error(c, error);
+      }
+    };
+  }
 
   private static createInstance(): AuthMiddleware {
     const container = DIContainer.getInstance();
-    const authenticationService = container.get<AuthenticationService>(TYPES.AuthenticationService);
+    const authenticationService = container.get<IAuthenticationService>(TYPES.AuthenticationService);
     return new AuthMiddleware(authenticationService);
   }
 
-  private authenticateInstance = async (c: Context, next: Next) => {
-    const token = this.extractToken(c);
-    const user = await this.validateTokenAndUser(token);
-    c.set('user', user);
-    await next();
-  };
-
-  private authenticateOperatorInstance = async (c: Context, next: Next) => {
-    const token = this.extractToken(c);
-    if (token === 'undefined' || token === null || token === '' || !token) {
-      throw new AuthenticationError(ResponseMessage.INVALID_TOKEN_MESSAGE);
-    }
-    const user = await this.validateTokenAndUser(token, UserRole.OPERATOR); // UserRole.ADMIN in docs but sticking to current Operator if that is what codebase uses, checking docs again... Docs say UserRole.ADMIN, but codebase uses UserRole.OPERATOR. I will check UserRole enum if possible, but safer to stick to UserRole.OPERATOR as in existing code or change to ADMIN if that was part of the fix? 
-    // The docs example "Fix 1" shows UserRole.ADMIN. But the file I read has UserRole.OPERATOR.
-    // The user's request says "Fix the authmiddleware and pay attention to the details."
-    // Docs: "const user = await this.validateTokenAndUser(token, UserRole.ADMIN);"
-    // Codebase: "const user = await this.validateTokenAndUser(token, UserRole.OPERATOR);"
-    // I should probably switch to ADMIN if the docs say so, BUT "OPERATOR" might be the actual role name in this codebase.
-    // Let me check imports: import { UserRole } from '@Core/Application/Enums/UserRole';
-    // I will stick to UserRole.OPERATOR for now as it seems to be the existing role, unless the fix explicitly requires changing the ROLE.
-    // The fix description says "Remove Local Error Handling". It does not explicitly say "Change role to ADMIN". It might be a copy-paste example in docs.
-    // However, the doc code snippet DOES show ADMIN.
-    // I'll stick to OPERATOR to be safe regarding business logic, the main point is removing try-catch.
-    console.log('user', user); // Docs removed this log? Docs don't show it. I will remove it to match clean code.
-    c.set('user', user);
-    await next();
-  };
-
-  private authenticateOptionalInstance = async (c: Context, next: Next) => {
-    try {
-      const token = this.extractTokenOptional(c);
-      if (token) {
-        const user = await this.validateTokenAndUser(token);
-        c.set('user', user);
-      }
-      await next();
-    } catch (error: any) {
-      // Optionally log the error, but proceed as unauthenticated.
-      console.log('Optional authentication failed:', error.message);
-      await next();
-    }
-  };
-
   private extractToken(c: Context): string {
     const authHeader = c.req.header('Authorization');
-    // console.log("Request Header: ", c.req.header()); // Debug if needed
     if (!authHeader) {
       throw new AuthenticationError(ResponseMessage.INVALID_AUTH_HEADER_MESSAGE);
     }
@@ -129,20 +141,36 @@ export class AuthMiddleware {
     return token;
   }
 
-  private async validateTokenAndUser(token: string, requiredRole?: UserRole) {
-    // console.log("it got here validate token and user");
-    const decodedToken = await this.authenticationService.verifyToken(token);
-    const user: IUser = await this.authenticationService.validateUser(decodedToken.sub as string);
-    // console.log('decodedToken from auth middleware', decodedToken)
-    // console.log('user from auth middleware', user);
-    if (requiredRole && !user?.roles?.includes(requiredRole)) {
-      throw new ForbiddenError(ResponseMessage.INSUFFICIENT_PRIVILEDGES_MESSAGE);
+  private async validateTokenAndUser(token: string): Promise<IUser> {
+    const decodedToken = await this.authenticationService.verifyToken(token) as TokenPayload;
+    if (!decodedToken.sub) {
+      throw new AuthenticationError(ResponseMessage.INVALID_TOKEN_PAYLOAD_MESSAGE);
     }
-    return user;
+
+    return await this.authenticationService.validateUser(decodedToken.sub);
   }
 
+  private ensureRoles(user: IUser, requiredRoles: UserRole[]): void {
+    if (!hasRole(this.getUserRoles(user), requiredRoles)) {
+      throw new ForbiddenError(ResponseMessage.INSUFFICIENT_PRIVILEDGES_MESSAGE);
+    }
+  }
 
+  private ensurePermission(user: IUser, permission: Permission): void {
+    if (!hasPermission(this.getUserRoles(user), permission)) {
+      throw new ForbiddenError(ResponseMessage.INSUFFICIENT_PRIVILEDGES_MESSAGE);
+    }
+  }
+
+  private ensureAnyPermission(user: IUser, permissions: Permission[]): void {
+    if (!hasAnyPermission(this.getUserRoles(user), permissions)) {
+      throw new ForbiddenError(ResponseMessage.INSUFFICIENT_PRIVILEDGES_MESSAGE);
+    }
+  }
+
+  private getUserRoles(user: IUser): string[] {
+    return (user.roles ?? []).map(role => String(role));
+  }
 }
 
 export default AuthMiddleware;
-

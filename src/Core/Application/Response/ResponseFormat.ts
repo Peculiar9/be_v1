@@ -1,9 +1,9 @@
 export interface ResponseDataInterface {
   success: boolean;
   message: string;
-  data: any;
+  data: unknown;
   error_code?: number;
-  meta?: any;
+  meta?: unknown;
 }
 
 export class ResponseMessage {
@@ -13,7 +13,7 @@ export class ResponseMessage {
   static readonly UNAUTHORIZED_MESSAGE = 'Unauthorized access';
   static readonly FORBIDDEN_MESSAGE = 'Access forbidden';
   static readonly NOT_FOUND_MESSAGE = 'Resource not found';
-  static readonly VALIDATION_ERROR_MESSAGE = 'Validation failed';
+  static readonly VALIDATION_ERROR_MESSAGE = 'Validation failed: a required field is missing or invalid';
   static readonly DATABASE_ERROR_MESSAGE = 'Database operation failed';
   static readonly FAILED_TOKEN_DESTRUCTURE = 'Failed to get user from token!!!';
   static readonly INTERNAL_SERVER_ERROR_MESSAGE = 'Internal server error';
@@ -52,7 +52,6 @@ export class ResponseMessage {
   static readonly VERIFICATION_ALREADY_COMPLETED = 'Verification already completed';
   static readonly PASSWORD_SETUP_SUCCESS = 'Password setup successful';
   static readonly USER_PASSWORD_SETUP_FAILED = 'User password setup failed';
-  static readonly USER_YOURE_TRYING_TO_VERIFY_DOES_NOT_EXIST = 'You are trying to verify a user that does not exist';
   static readonly SUCCESSFUL_REGISTRATION = 'User registration completed successfully';
   static readonly USER_PASSWORD_RESET_SUCCESS = 'User password reset successfully';
   static readonly USER_PASSWORD_RESET_FAILED = 'User password reset failed';
@@ -65,9 +64,6 @@ export class ResponseMessage {
   static readonly INVALID_VERIFICATION_CODE = 'Invalid or expired verification code';
   // Additional error messages from controllers
   static readonly SERVICE_RUNNING = 'The service is running!!!';
-  
-  // Method not implemented messages
-  static readonly METHOD_NOT_IMPLEMENTED = 'Method not implemented';
   
   // Database related messages
   static readonly UNABLE_TO_EXTRACT_TABLE_SCHEMA = 'Unable to extract table schema';
